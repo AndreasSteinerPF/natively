@@ -23,6 +23,7 @@ import { ActionConfigStore } from './meeting-copilot/ActionConfigStore';
 import { buildMeetingCopilotContext } from './meeting-copilot/ContextBuilder';
 import { CodeTools } from './meeting-copilot/CodeTools';
 import { CodeWorkspaceStore } from './meeting-copilot/CodeWorkspaceStore';
+import { buildTranscriptSnapshot } from './meeting-copilot/TranscriptBridge';
 import {
   DEFAULT_MEETING_COPILOT_CONFIG,
   DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
@@ -250,11 +251,10 @@ export function initializeIpcHandlers(appState: AppState): void {
   });
   const meetingCopilotActionRunManager = new ActionRunManager({
     config: meetingCopilotConfig,
-    // TODO(meeting-copilot M5+): replace the empty snapshot provider with the
-    // dedicated meeting transcript runtime feed once that slice owns the wiring.
-    transcriptSnapshotProvider: () => ({
-      meeting_id: 'meeting-copilot-live',
-      chunks: [],
+    transcriptSnapshotProvider: () => buildTranscriptSnapshot({
+      segments: appState.getIntelligenceManager().getCurrentMeetingTranscript(),
+      meetingId: 'meeting-copilot-live',
+      maxTotalChars: meetingCopilotConfig.transcript_context.max_total_chars,
     }),
     buildContext: buildMeetingCopilotContext,
     buildMessages: buildOpenRouterMessages,

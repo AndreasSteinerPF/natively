@@ -328,6 +328,10 @@ export interface CodeContextConfig {
     include_line_numbers: boolean;
 }
 
+export interface TranscriptContextConfig {
+    max_total_chars: number;
+}
+
 export interface ProjectContextMetrics {
     project_context_included?: boolean;
     project_context_pack_names?: string[];
@@ -386,6 +390,7 @@ export interface MeetingCopilotConfig {
     actions: Record<string, MeetingCopilotActionConfig>;
     workspaces: WorkspaceConfig[];
     code_context: CodeContextConfig;
+    transcript_context: TranscriptContextConfig;
     project_context: ProjectContextConfig;
 }
 

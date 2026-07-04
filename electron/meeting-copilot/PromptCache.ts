@@ -68,6 +68,13 @@ export function buildOpenRouterMessages(input: {
     const userBlocks: OpenRouterContentBlock[] = [];
 
     for (const section of input.context.sections) {
+        // Skip empty/whitespace-only sections: Anthropic rejects requests whose
+        // text content blocks are empty ("text content blocks must be non-empty"),
+        // which otherwise 400s full_cached actions when e.g. the transcript is empty.
+        if (!section.content || section.content.trim().length === 0) {
+            continue;
+        }
+
         if (section.key === 'current_action' || section.key === 'dynamic_evidence_context') {
             userBlocks.push({ type: 'text', text: section.content });
             continue;

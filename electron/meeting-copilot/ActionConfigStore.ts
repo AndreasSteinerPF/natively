@@ -91,6 +91,7 @@ export function validateMeetingCopilotConfig(value: unknown): MeetingCopilotConf
     const actions = validateActions(config.actions, 'actions');
     const workspaces = validateWorkspaces(config.workspaces, 'workspaces');
     const codeContext = validateCodeContext(config.code_context, 'code_context');
+    const transcriptContext = validateTranscriptContext(config.transcript_context, 'transcript_context');
     const projectContext = validateProjectContext(config.project_context, 'project_context');
 
     return {
@@ -98,6 +99,7 @@ export function validateMeetingCopilotConfig(value: unknown): MeetingCopilotConf
         actions,
         workspaces,
         code_context: codeContext,
+        transcript_context: transcriptContext,
         project_context: projectContext,
     };
 }
@@ -332,6 +334,14 @@ function validateCodeContext(value: unknown, pathName: string) {
         max_total_chars: requirePositiveInteger(value.max_total_chars, `${pathName}.max_total_chars`),
         include_file_paths: value.include_file_paths,
         include_line_numbers: value.include_line_numbers,
+    };
+}
+
+function validateTranscriptContext(value: unknown, pathName: string) {
+    assertObject(value, pathName);
+
+    return {
+        max_total_chars: requirePositiveInteger(value.max_total_chars, `${pathName}.max_total_chars`),
     };
 }
 

@@ -37,6 +37,12 @@ export interface AssistantResponse {
     questionContext: string;
 }
 
+export function mapSpeakerToRole(speaker: string): 'interviewer' | 'user' | 'assistant' {
+    if (speaker === 'user') return 'user';
+    if (speaker === 'assistant') return 'assistant';
+    return 'interviewer'; // system audio = interviewer
+}
+
 export class SessionTracker {
     // Context management (mirrors Swift ContextManager)
     private contextItems: ContextItem[] = [];
@@ -613,9 +619,7 @@ export class SessionTracker {
     // ============================================
 
     mapSpeakerToRole(speaker: string): 'interviewer' | 'user' | 'assistant' {
-        if (speaker === 'user') return 'user';
-        if (speaker === 'assistant') return 'assistant';
-        return 'interviewer'; // system audio = interviewer
+        return mapSpeakerToRole(speaker);
     }
 
     private evictOldEntries(): void {

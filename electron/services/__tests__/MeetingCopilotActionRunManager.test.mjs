@@ -302,8 +302,12 @@ describe('meeting-copilot action runner', () => {
       assert.equal(request.session_id, `meeting-123:${actionId}`);
       assert.equal(request.stream, true);
       assert.equal(Array.isArray(request.messages[0].content), true);
-      assert.equal(request.messages[0].content.length, 4);
+      // Empty cacheable sections (custom_context, pinned_context) are omitted so
+      // Anthropic never receives an empty text content block (which 400s). Only
+      // the non-empty cacheable sections remain: stable_instructions + transcript.
+      assert.equal(request.messages[0].content.length, 2);
       assert.equal(request.messages[0].content.every((block) => block.cache_control?.ttl === '1h'), true);
+      assert.equal(request.messages[0].content.every((block) => block.text.trim().length > 0), true);
       assert.equal(Array.isArray(request.messages[1].content), true);
       assert.equal(request.messages[1].content.length, 2);
       assert.equal(request.messages[1].content[0].text, '<code_context>\n[file: src/example.ts lines=42-42]\n...</code_context>');

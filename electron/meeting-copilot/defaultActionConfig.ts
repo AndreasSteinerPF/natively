@@ -162,6 +162,9 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
         include_file_paths: true,
         include_line_numbers: true,
     },
+    transcript_context: {
+        max_total_chars: 24_000,
+    },
     project_context: {
         enabled: false,
         max_docs_chars_per_pack: 20_000,

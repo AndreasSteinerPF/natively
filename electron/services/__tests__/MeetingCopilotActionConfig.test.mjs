@@ -114,6 +114,9 @@ const EXPECTED_DEFAULTS = {
   code_context: {
     max_total_chars: 12000,
   },
+  transcript_context: {
+    max_total_chars: 24000,
+  },
 };
 
 let tempRoot = '';
@@ -251,6 +254,13 @@ describe('meeting-copilot action config defaults', () => {
       EXPECTED_DEFAULTS.code_context.max_total_chars
     );
   });
+
+  test('transcript context limits match the brief defaults', () => {
+    assert.equal(
+      DEFAULT_MEETING_COPILOT_CONFIG.transcript_context.max_total_chars,
+      EXPECTED_DEFAULTS.transcript_context.max_total_chars
+    );
+  });
 });
 
 describe('meeting-copilot action config validation', () => {
@@ -313,6 +323,15 @@ describe('meeting-copilot action config validation', () => {
     assert.throws(
       () => validateMeetingCopilotConfig(config),
       /workspaces\.0\.name must be a non-empty string/
+    );
+  });
+
+  test('invalid transcript context max_total_chars is rejected', () => {
+    const config = cloneConfig();
+    config.transcript_context.max_total_chars = -1;
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /transcript_context\.max_total_chars must be a positive integer/
     );
   });
 });

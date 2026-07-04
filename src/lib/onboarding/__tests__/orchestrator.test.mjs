@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { shouldShowToaster } from '../orchestrator.mjs';
+import { shouldShowToaster } from '../orchestrator.pure.mjs';
 import { STAGES } from '../stageCatalog.mjs';
 
 const DEFAULT_USER_STATE = {

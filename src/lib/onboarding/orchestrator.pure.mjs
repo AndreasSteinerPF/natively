@@ -53,8 +53,9 @@ export function shouldShowToaster(config, ctx) {
 }
 
 /**
- * Default UserState — exported here so the orchestrator.ts source-of-truth
- * is mirrored in the .mjs companion that the Vite bundle resolves to.
+ * Default UserState — mirrors the orchestrator.ts source-of-truth so the
+ * pure-function tests can build fixture contexts without importing the
+ * DOM/RAF-bound class.
  */
 export const DEFAULT_USER_STATE = {
   isPremium: false,
@@ -71,46 +72,3 @@ export const DEFAULT_USER_STATE = {
   donationShouldShow: false,
   isV2_8_OrNewer: true,
 };
-
-/**
- * No-op orchestrator handle for use in test/static contexts where the real
- * singleton isn't available. Returns the same shape as getOrchestrator() so
- * callers can call .emit() / .subscribe() without crashing — but they're
- * all no-ops.
- */
-export function getOrchestrator() {
-  if (!getOrchestrator.__instance) {
-    getOrchestrator.__instance = createNoopOrchestrator();
-  }
-  return getOrchestrator.__instance;
-}
-
-function createNoopOrchestrator() {
-  const noop = () => {};
-  return {
-    start: noop,
-    stop: noop,
-    emit: noop,
-    subscribe: () => noop,
-    getSnapshot: () => ({
-      version: '1.0',
-      startupCount: 0,
-      totalUsageMs: 0,
-      turnCount: 0,
-      homepageMountedAt: null,
-      homepageFrozenAt: null,
-      homepageCurrentlyMounted: false,
-      appInForeground: true,
-      meetingActive: false,
-      queue: [],
-      completed: {},
-      skipped: new Set(),
-      activeToasterId: null,
-      lastShownTimes: {},
-    }),
-    markDismissed: noop,
-    markSkipped: noop,
-    setUserState: noop,
-    getUserState: () => DEFAULT_USER_STATE,
-  };
-}
