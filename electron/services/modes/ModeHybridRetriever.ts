@@ -7,7 +7,7 @@ import { ModeReferenceFile } from '../ModesManager';
 import { VectorStore, ScoredChunk } from '../../rag/VectorStore';
 import { EmbeddingPipeline } from '../../rag/EmbeddingPipeline';
 import Database from 'better-sqlite3';
-import { buildDocumentMap, sectionAwareChunksFromMap, sentenceAwareWindows } from './DocumentMap';
+import { buildDocumentMap, sectionAwareChunksFromMap, sentenceAwareWindows, tabularChunks } from './DocumentMap';
 
 export interface ModeRetrievedChunk {
     sourceId: string;
@@ -523,6 +523,12 @@ export class ModeHybridRetriever {
      * ingest are SOFT boundaries — they don't close a section.
      */
     private chunkText(content: string): string[] {
+        // TABULAR data (CSV/TSV) is chunked by ROWS with the header repeated, so a
+        // query for one entity retrieves its row with columns labelled instead of a
+        // giant undifferentiated blob (which caused fabricated figures on datasets).
+        const table = tabularChunks(content);
+        if (table) return table;
+
         // STRUCTURED documents (real ToC + numbered sections, e.g. a thesis PDF)
         // are chunked by the shared Document Map, which EXCLUDES the Table of
         // Contents and tags each chunk `[Section N.N | pX-Y]`. This is the same
@@ -1021,8 +1027,11 @@ export class ModeHybridRetriever {
         // section when document-grounded (preserves multi-section answers).
         const deduped = this.deduplicateChunks(candidates, reranked, forceDocumentGrounding);
 
-        // Enforce token budget
-        const selected = this.enforceTokenBudget(deduped, tokenBudget, reranked, topK);
+        // Enforce token budget. For document-grounded modes with MULTIPLE files,
+        // guarantee each file contributes its best chunk so a large dataset can't
+        // starve a small one out of the retrieved set.
+        const guaranteePerFile = forceDocumentGrounding && files.length > 1;
+        const selected = this.enforceTokenBudget(deduped, tokenBudget, reranked, topK, guaranteePerFile);
 
         // Format output with citations
         const formattedContext = this.formatContext(selected);
@@ -1184,7 +1193,11 @@ export class ModeHybridRetriever {
         try {
             queryEmbedding = await this.embeddingPipeline.getEmbeddingForQuery(queryText);
         } catch (error) {
-            throw new Error('Query embedding failed: ' + error);
+            // Surface key-pool health in the failure so a 429-burst (vs. a genuine
+            // outage) is distinguishable in logs without re-running with tracing on.
+            const health = (this.embeddingPipeline as any).primaryPoolHealth;
+            const healthNote = typeof health === 'number' ? ` (key pool health: ${Math.round(health * 100)}%)` : '';
+            throw new Error('Query embedding failed: ' + error + healthNote);
         }
 
         const activeSpace = this.embeddingPipeline.getActiveSpaceKey?.() ?? null;
@@ -1354,25 +1367,45 @@ export class ModeHybridRetriever {
      * Enforce token budget by selecting highest-scoring chunks that fit. When
      * `byRerank` is true, "highest" is the cross-encoder order.
      */
-    private enforceTokenBudget(candidates: ChunkCandidate[], budget: number, byRerank: boolean = false, topK: number = DEFAULT_TOP_K): ChunkCandidate[] {
+    private enforceTokenBudget(candidates: ChunkCandidate[], budget: number, byRerank: boolean = false, topK: number = DEFAULT_TOP_K, guaranteePerFile = false): ChunkCandidate[] {
         const sorted = [...candidates].sort((a, b) => this.rankScore(b, byRerank) - this.rankScore(a, byRerank));
 
         const selected: ChunkCandidate[] = [];
+        const picked = new Set<ChunkCandidate>();
         let totalTokens = 0;
+        const tryAdd = (candidate: ChunkCandidate): boolean => {
+            if (picked.has(candidate)) return false;
+            const tokens = estimateTokens(candidate.text);
+            if (totalTokens + tokens > budget && selected.length > 0) return false;
+            selected.push(candidate);
+            picked.add(candidate);
+            totalTokens += tokens;
+            return true;
+        };
+
+        // PER-FILE FLOOR (multi-doc grounded modes): a large file (e.g. a 14k-row
+        // dataset → 120 chunks) can crowd every slot and starve a small file (e.g. a
+        // 142-row dataset), so a query for an entity in the small file retrieves
+        // nothing from it and the model says "not in the documents". Guarantee the
+        // top-N highest-scoring chunks from EACH file first, then fill the rest by
+        // global score. N=2 (not 1) because the single top chunk of a file is often
+        // not the one holding the specific fact (a normative clause / a particular
+        // data row / an equation), so one extra per file materially improves recall
+        // without blowing topK. Cheap: at most (#files * PER_FILE_FLOOR) reserved slots.
+        const PER_FILE_FLOOR = Number(process.env.NATIVELY_RETRIEVAL_PER_FILE_FLOOR) || 2;
+        if (guaranteePerFile) {
+            const perFileCount = new Map<string, number>();
+            for (const c of sorted) {
+                if (selected.length >= topK) break;
+                const n = perFileCount.get(c.sourceId) || 0;
+                if (n >= PER_FILE_FLOOR) continue;
+                if (tryAdd(c)) perFileCount.set(c.sourceId, n + 1);
+            }
+        }
 
         for (const candidate of sorted) {
-            const tokens = estimateTokens(candidate.text);
-
-            // If adding this chunk would exceed budget and we already have content, skip
-            if (totalTokens + tokens > budget && selected.length > 0) {
-                continue;
-            }
-
-            selected.push(candidate);
-            totalTokens += tokens;
-
-            // Stop if we've reached topK
             if (selected.length >= topK) break;
+            tryAdd(candidate);
         }
 
         return selected;

@@ -73,19 +73,68 @@ async function main() {
   if (geminiKeys[0]) launchEnv.GOOGLE_API_KEY = geminiKeys[0];
   console.log(`[matrix] embeddings: Gemini cloud 768d, ${geminiKeys.length}-key pool (app rotates on 429)`);
 
-  const app = await electron.launch({
+  let app = await electron.launch({
     args: ['dist-electron/electron/main.js'],
     env: launchEnv,
     timeout: 60000,
   });
-  const win = await app.firstWindow({ timeout: 30000 });
-  await win.waitForLoadState('domcontentloaded').catch(() => {});
+  await app.firstWindow({ timeout: 30000 });
+  await app.windows()[0].waitForLoadState('domcontentloaded').catch(() => {});
   const w = () => app.windows()[0];
+  // Resilient invoke: heavy grounded indexing can crash the Electron renderer
+  // ("Target crashed"). Rather than abort the whole run, relaunch the app (the DB
+  // persists in the same userData, so ingested modes survive) and retry.
+  let relaunches = 0;
   const R = async (ch, ...a) => {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        return await w().evaluate(async ({ ch, a }) => (window.electronAPI || window.api).e2eInvoke(ch, ...a), { ch, a });
-      } catch (e) { if (attempt === 2) throw e; await new Promise((r) => setTimeout(r, 1000)); }
+        const win = w();
+        if (!win) throw new Error('no window');
+        return await win.evaluate(async ({ ch, a }) => (window.electronAPI || window.api).e2eInvoke(ch, ...a), { ch, a });
+      } catch (e) {
+        if (attempt === 3) throw e;
+        const dead = /Target (page|crashed)|crashed|context was destroyed|no window|reading 'evaluate'|evaluate/.test(String(e?.message || e));
+        if (dead && relaunches < 6) {
+          relaunches++;
+          try { await app.close(); } catch { /* ignore */ }
+          // Remove a stale Electron singleton lock left by the crashed process —
+          // otherwise the relaunch below can ALSO fail to acquire a window (the
+          // new instance blocks on the dead process's lock), and that failure was
+          // uncaught here, escaping the retry loop as a mode-ending "matrix fatal".
+          try {
+            const os = await import('node:os');
+            const fsp = await import('node:fs/promises');
+            const lockDir = `${os.homedir()}/Library/Application Support/Electron`;
+            await Promise.all(['SingletonLock', 'SingletonCookie', 'SingletonSocket']
+              .map((f) => fsp.unlink(`${lockDir}/${f}`).catch(() => {})));
+          } catch { /* best-effort, non-fatal */ }
+          // A crashed instance can leave orphaned Helper (network/GPU utility)
+          // processes bound to this run's --user-data-dir; those alone were
+          // enough to make the relaunch's fresh Electron.launch() itself fail
+          // ("Process failed to launch!"), which then exhausted all 6 relaunch
+          // attempts. Kill any Electron Helper still holding a natively-e2e
+          // temp profile before retrying.
+          try {
+            const { execSync } = await import('node:child_process');
+            execSync("pkill -9 -f 'natively-e2e-udd' 2>/dev/null || true");
+          } catch { /* best-effort, non-fatal */ }
+          await new Promise((r) => setTimeout(r, 2500));
+          try {
+            const { _electron: e2 } = await import('@playwright/test');
+            app = await e2.launch({ args: ['dist-electron/electron/main.js'], env: launchEnv, timeout: 60000 });
+            await app.firstWindow({ timeout: 30000 });
+            await app.windows()[0].waitForLoadState('domcontentloaded').catch(() => {});
+            await app.windows()[0].evaluate(async () => (window.electronAPI || window.api).e2eInvoke('__e2e__:enable-pro')).catch(() => {});
+          } catch (relaunchErr) {
+            // Relaunch itself failed — don't let it escape uncaught; fall through
+            // to the retry loop (attempt+1) which will try again up to attempt===3.
+            log(`  relaunch attempt ${relaunches} failed: ${relaunchErr.message}`);
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+        } else {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
     }
   };
 
@@ -95,7 +144,14 @@ async function main() {
   const modeSummaries = [];
   let crashCount = 0;
 
-  for (const plan of MODE_PLAN) {
+  // Optional focus filter (comma-separated brief keys) so a subset of modes can run
+  // in a fresh process — the long full run accumulates memory across 10 modes and
+  // the heavy 200-chunk-thesis legal mode can crash the renderer; running subsets
+  // isolates that. e.g. MODE_FILTER=legal-compliance,support-escalation
+  const modeFilter = (process.env.MODE_FILTER || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const plans = modeFilter.length ? MODE_PLAN.filter((p) => modeFilter.includes(p.key)) : MODE_PLAN;
+
+  for (const plan of plans) {
     const draft = loadDraft(plan.key);
     log(`\n=== MODE ${plan.label} (${plan.key}) grounded=${plan.grounded} docs=${plan.documents.length} ===`);
     const modeRec = { key: plan.key, label: plan.label, grounded: plan.grounded, questions: [], detection: null };
@@ -112,33 +168,60 @@ async function main() {
       }, draft);
     } catch (e) { crashCount++; modeRec.error = `create: ${e.message}`; modeSummaries.push(modeRec); continue; }
 
-    // 2. ingest mapped documents, wait for index 'ready'
+    // 2. ingest mapped documents. Ingest + index files ONE AT A TIME with a short
+    // settle for 3+-doc modes: adding several large PDFs at once makes their
+    // indexing (embedding hundreds of chunks) overlap and spike renderer memory to
+    // an OOM ("no window") — the conference-talk 3-paper mode. Serial ingest keeps
+    // peak memory bounded to one file's index at a time.
     const ingested = [];
+    // 2-doc heavy modes (a 14k-row CSV, or an RFC + 66-page thesis) hit the same
+    // renderer OOM as 3-doc modes — lower the threshold to 2+ rather than 3+.
+    const serialIngest = plan.documents.length >= 2;
     for (const rel of plan.documents) {
       try {
         const { text, pages } = await extractText(rel);
         const ing = await R('__e2e__:add-reference-file', { modeId, fileName: path.basename(rel), content: text, pageCount: pages });
         ingested.push({ rel, ok: ing?.success, chars: text.length });
+        if (serialIngest) {
+          // let this file's index settle before adding the next
+          for (let i = 0; i < 15; i++) {
+            const st = await R('__e2e__:index-status', modeId);
+            const done = (st?.statuses || []).filter((s) => s.status === 'ready' || s.status === 'lexical_only').length;
+            if (done >= ingested.length) break;
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+        }
       } catch (e) { ingested.push({ rel, ok: false, error: e.message }); }
     }
     if (plan.documents.length) {
-      // wait for index ready (up to 20s)
-      let ready = false;
-      for (let i = 0; i < 20; i++) {
+      // Wait for VECTOR-ready ('ready'), not merely 'lexical_only'. Grounded answers
+      // need vector retrieval; asking while a file is lexical_only makes the model
+      // miss facts and false-refuse. Re-fire reindex-embeddings (which retries
+      // lexical_only files, rotating Gemini keys + honoring 429 cooldown) until every
+      // file is 'ready' or the 90s budget is spent.
+      const allReady = (sts) => sts.length >= plan.documents.length && sts.every((s) => s.status === 'ready');
+      let statuses = [];
+      const DEADLINE = Date.now() + 90_000;
+      let lastReindex = 0;
+      while (Date.now() < DEADLINE) {
         const st = await R('__e2e__:index-status', modeId);
-        const statuses = st?.statuses || [];
-        if (statuses.length >= plan.documents.length && statuses.every((s) => s.status === 'ready' || s.status === 'lexical_only')) { ready = true; break; }
-        await new Promise((r) => setTimeout(r, 1000));
+        statuses = st?.statuses || [];
+        if (allReady(statuses)) break;
+        if (Date.now() - lastReindex > 8000) {
+          const reidx = await R('__e2e__:reindex-embeddings', modeId).catch(() => null);
+          if (reidx?.statuses) statuses = reidx.statuses;
+          lastReindex = Date.now();
+          if (allReady(statuses)) break;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
       }
-      // Force real vector embeddings (local MiniLM fallback) + retry lexical_only
-      // files, then prewarm. This upgrades retrieval from lexical-only to hybrid.
-      const reidx = await R('__e2e__:reindex-embeddings', modeId).catch(() => null);
       await R('__e2e__:prewarm-mode', modeId).catch(() => {});
-      await new Promise((r) => setTimeout(r, 1500));
-      modeRec.indexReady = ready;
+      await new Promise((r) => setTimeout(r, 1000));
+      const vectorReady = allReady(statuses);
+      modeRec.indexReady = vectorReady;
       modeRec.ingested = ingested;
-      modeRec.indexStatuses = reidx?.statuses || null;
-      log(`  ingested ${ingested.filter((x) => x.ok).length}/${plan.documents.length}, indexReady=${ready}, reindexed=${JSON.stringify((reidx?.statuses||[]).map((s)=>s.status))}`);
+      modeRec.indexStatuses = statuses;
+      log(`  ingested ${ingested.filter((x) => x.ok).length}/${plan.documents.length}, vectorReady=${vectorReady}, statuses=${JSON.stringify(statuses.map((s)=>s.status))}`);
     }
 
     // 3. detection precision: statements must not fire, a real question must
@@ -157,6 +240,14 @@ async function main() {
       fillerFires,
     };
     log(`  detection: question fired=${qDet?.wouldFire} falseFires=${falseFires}/${DETECTION_FILLERS.length}`);
+
+    // Quota-settle: indexing a large doc consumes the shared Gemini embed window;
+    // give it a moment to recover so the per-question QUERY embed isn't throttled
+    // (a throttled query-embed exceeds the retrieval race → weak lexical fallback →
+    // false-refuse). Only when we actually indexed vectors.
+    if (plan.documents.length && plan.grounded) {
+      await new Promise((r) => setTimeout(r, 4000));
+    }
 
     // 4+5. ask each mapped question, score
     const questions = questionsForMode(bank, plan.label);
@@ -199,8 +290,36 @@ async function main() {
       if (det.semanticCriteria.length > 0) {
         try {
           const jr = await llmJudge(q.question, answerText, det.semanticCriteria.map((c) => c.text), { timeoutMs: 60000 });
-          // align verdicts to criteria order; judge may return fewer/renamed — map by index, fall back to null
-          verdicts = det.semanticCriteria.map((_, i) => jr.verdicts[i] || null);
+          // Align verdicts to criteria BY CONTENT, not index: the judge can return
+          // verdicts out of order or drop one, and index-mapping then applies verdict
+          // B to criterion A (a passing answer scored as fail with a positive reason).
+          // Match each criterion to the verdict whose `criterion` text is the closest
+          // (exact, substring, or highest token overlap); fall back to index only if
+          // no content match, and never reuse a verdict for two criteria.
+          const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+          const used = new Set();
+          const findVerdict = (critText) => {
+            const cn = norm(critText);
+            const cw = new Set(cn.split(' ').filter((w) => w.length > 3));
+            let best = -1; let bestScore = 0;
+            jr.verdicts.forEach((v, vi) => {
+              if (used.has(vi) || !v) return;
+              const vn = norm(v.criterion);
+              let score = 0;
+              if (vn === cn) score = 1000;
+              else if (vn && (cn.includes(vn) || vn.includes(cn))) score = 500;
+              else { const vw = vn.split(' ').filter((w) => w.length > 3); score = vw.filter((w) => cw.has(w)).length; }
+              if (score > bestScore) { bestScore = score; best = vi; }
+            });
+            if (best >= 0 && bestScore > 0) { used.add(best); return jr.verdicts[best]; }
+            return null;
+          };
+          verdicts = det.semanticCriteria.map((c, i) => {
+            const byContent = findVerdict(c.text);
+            if (byContent) return byContent;
+            // index fallback only if that slot isn't already claimed by content match
+            return used.has(i) ? null : (jr.verdicts[i] || null);
+          });
           judgeMeta = { model: jr.model, verdicts: jr.verdicts };
         } catch (e) {
           judgeUnavailable = true;
