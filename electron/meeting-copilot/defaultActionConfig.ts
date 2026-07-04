@@ -1,0 +1,171 @@
+import { MeetingCopilotConfig } from './types';
+
+export const DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
+    'You are my live technical meeting copilot.',
+    '',
+    'Evidence hierarchy:',
+    '1. Meeting transcript is the source of truth for what was said.',
+    '2. Project docs are useful orientation and hypotheses.',
+    '3. Actual repo code is the source of truth for implementation details.',
+    '4. Fresh external sources are the source of truth for current public facts.',
+    '5. LLM prior knowledge may be stale.',
+    '',
+    'Use project docs for orientation.',
+    'Verify implementation-sensitive claims against code.',
+    'When docs and code disagree, prefer code and say the docs appear stale, incomplete, or directionally correct only.',
+].join('\n');
+
+export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
+    openrouter: {
+        base_url: 'https://openrouter.ai/api/v1',
+        api_key_env: 'OPENROUTER_API_KEY',
+        default_headers: {
+            'HTTP-Referer': 'https://localhost/natively-private',
+            'X-Title': 'Natively Private Fork',
+        },
+    },
+    actions: {
+        'quick-answer': {
+            label: 'Quick Answer',
+            trigger: {
+                hotkey: 'Command+Shift+1',
+                slash: '/quick',
+                button: false,
+            },
+            model: 'google/gemini-3.5-flash',
+            context_mode: 'recent',
+            cache_policy: 'none',
+            context_minutes: 2,
+            max_tokens: 300,
+            temperature: 0.3,
+            reasoning: {
+                effort: 'low',
+            },
+            prompt: 'Using the recent transcript, give me a concise answer I can say out loud in 1-3 sentences. Prioritize speed and usefulness.',
+        },
+        'tech-solver': {
+            label: 'Tech Solver',
+            trigger: {
+                hotkey: 'Command+Shift+2',
+                slash: '/tech',
+                button: false,
+            },
+            model: 'anthropic/claude-opus-4.8-fast',
+            context_mode: 'full_cached',
+            cache_policy: 'anthropic_explicit_1h',
+            max_tokens: 700,
+            temperature: 0.25,
+            reasoning: {
+                effort: 'low',
+            },
+            tools_enabled: true,
+            max_tool_rounds: 2,
+            max_tool_calls_per_round: 4,
+            prompt: 'You are helping me during a live technical or AI/product meeting. Use the full transcript, pinned context, custom context, and any relevant code context. Give the best practical answer under time pressure: recommendation, key reasoning, tradeoffs/risks, and one sentence I can say out loud.',
+        },
+        'deep-solution': {
+            label: 'Deep Solution',
+            trigger: {
+                hotkey: 'Command+Shift+3',
+                slash: '/deep',
+                button: false,
+            },
+            model: 'anthropic/claude-opus-4.8-fast',
+            context_mode: 'full_cached',
+            cache_policy: 'anthropic_explicit_1h',
+            max_tokens: 1200,
+            temperature: 0.2,
+            reasoning: {
+                effort: 'medium',
+            },
+            tools_enabled: true,
+            max_tool_rounds: 3,
+            max_tool_calls_per_round: 6,
+            prompt: 'Analyze the technical/product problem deeply. Use the full transcript, pinned context, custom context, and any relevant code context. Propose the best solution, alternatives, assumptions, tradeoffs, risks, and next steps. Be specific and avoid generic advice.',
+        },
+        'claim-check': {
+            label: 'Claim Check',
+            trigger: {
+                hotkey: 'Command+Shift+4',
+                slash: '/check',
+                button: false,
+            },
+            model: 'perplexity/sonar-pro-search',
+            context_mode: 'recent',
+            cache_policy: 'none',
+            context_minutes: 5,
+            max_tokens: 600,
+            temperature: 0.1,
+            prompt: 'Check the last claim or proposal from the transcript. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.',
+        },
+        followups: {
+            label: 'Follow-up Questions',
+            trigger: {
+                hotkey: 'Command+Shift+5',
+                slash: '/followups',
+                button: false,
+            },
+            model: 'google/gemini-3.5-flash',
+            context_mode: 'recent',
+            cache_policy: 'none',
+            context_minutes: 3,
+            max_tokens: 250,
+            temperature: 0.4,
+            reasoning: {
+                effort: 'low',
+            },
+            prompt: 'Give me 3 sharp, non-confrontational follow-up questions to ask right now based on the recent transcript.',
+        },
+        'tech-solver-parallel': {
+            label: 'Tech Solver: Fast + Deep',
+            trigger: {
+                hotkey: 'Command+Shift+6',
+                slash: '/tech2',
+                button: false,
+            },
+            parallel: {
+                fast: {
+                    model: 'google/gemini-3.5-flash',
+                    context_mode: 'recent',
+                    cache_policy: 'none',
+                    context_minutes: 3,
+                    max_tokens: 350,
+                    temperature: 0.3,
+                    reasoning: {
+                        effort: 'low',
+                    },
+                    tools_enabled: false,
+                    prompt: 'Give me the fastest useful answer I can say out loud now. Keep it concise and practical.',
+                },
+                deep: {
+                    model: 'anthropic/claude-opus-4.8-fast',
+                    context_mode: 'full_cached',
+                    cache_policy: 'anthropic_explicit_1h',
+                    max_tokens: 900,
+                    temperature: 0.2,
+                    reasoning: {
+                        effort: 'medium',
+                    },
+                    tools_enabled: true,
+                    max_tool_rounds: 2,
+                    max_tool_calls_per_round: 4,
+                    prompt: 'Analyze more deeply. Improve, correct, or qualify the fast answer. Focus on technical correctness, AI-system design tradeoffs, hidden assumptions, and risks.',
+                },
+            },
+        },
+    },
+    workspaces: [],
+    code_context: {
+        enabled: true,
+        retrieval_mode: 'tool_loop',
+        max_total_chars: 12000,
+        include_file_paths: true,
+        include_line_numbers: true,
+    },
+    project_context: {
+        enabled: false,
+        max_docs_chars_per_pack: 20_000,
+        max_total_docs_chars: 40_000,
+        packs: [],
+    },
+};

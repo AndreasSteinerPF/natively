@@ -1,0 +1,130 @@
+import {
+    BuiltMeetingCopilotContext,
+    CachePolicy,
+    OpenRouterCacheControl,
+    OpenRouterContentBlock,
+    OpenRouterMessage,
+    PromptSection,
+} from './types';
+
+const CACHEABLE_SECTION_KEYS = new Set([
+    'stable_instructions',
+    'custom_context',
+    'project_docs_context',
+    'pinned_context',
+    'meeting_transcript_so_far',
+] as const);
+
+function cloneBlock(block: OpenRouterContentBlock): OpenRouterContentBlock {
+    return block.cache_control ? { ...block, cache_control: { ...block.cache_control } } : { ...block };
+}
+
+function cloneMessage(message: OpenRouterMessage): OpenRouterMessage {
+    if (Array.isArray(message.content)) {
+        return {
+            ...message,
+            content: message.content.map(cloneBlock),
+        };
+    }
+
+    return { ...message };
+}
+
+function buildContentBlock(section: PromptSection, cacheControl?: OpenRouterCacheControl): OpenRouterContentBlock {
+    const block: OpenRouterContentBlock = {
+        type: 'text',
+        text: section.content,
+    };
+
+    if (cacheControl && section.cache?.cacheable && CACHEABLE_SECTION_KEYS.has(section.key)) {
+        block.cache_control = cacheControl;
+    }
+
+    return block;
+}
+
+export function cacheControlForPolicy(policy: CachePolicy): OpenRouterCacheControl | undefined {
+    if (policy === 'anthropic_explicit_5m') {
+        return { type: 'ephemeral' };
+    }
+
+    if (policy === 'anthropic_explicit_1h') {
+        return { type: 'ephemeral', ttl: '1h' };
+    }
+
+    return undefined;
+}
+
+export function buildOpenRouterMessages(input: {
+    context: BuiltMeetingCopilotContext;
+    cachePolicy: CachePolicy;
+}): {
+    messages: OpenRouterMessage[];
+    cacheable_block_count: number;
+    cache_control_applied: boolean;
+} {
+    const cacheControl = cacheControlForPolicy(input.cachePolicy);
+    const systemBlocks: OpenRouterContentBlock[] = [];
+    const userBlocks: OpenRouterContentBlock[] = [];
+
+    for (const section of input.context.sections) {
+        if (section.key === 'current_action' || section.key === 'dynamic_evidence_context') {
+            userBlocks.push({ type: 'text', text: section.content });
+            continue;
+        }
+
+        if (section.key === 'code_context') {
+            if (input.context.mode === 'full_cached') {
+                userBlocks.push({ type: 'text', text: section.content });
+            }
+            continue;
+        }
+
+        systemBlocks.push(buildContentBlock(section, cacheControl));
+    }
+
+    const messages: OpenRouterMessage[] = [];
+    if (systemBlocks.length > 0) {
+        messages.push({
+            role: 'system',
+            content: systemBlocks,
+        });
+    }
+    if (userBlocks.length > 0) {
+        messages.push({
+            role: 'user',
+            content: userBlocks.length === 1 ? userBlocks[0].text : userBlocks,
+        });
+    }
+
+    return {
+        messages,
+        cacheable_block_count: systemBlocks.filter((block) => block.cache_control !== undefined).length,
+        cache_control_applied: cacheControl !== undefined && systemBlocks.some((block) => block.cache_control !== undefined),
+    };
+}
+
+export function stripCacheControlFromMessages(messages: OpenRouterMessage[]): OpenRouterMessage[] {
+    return messages.map((message) => {
+        if (!Array.isArray(message.content)) {
+            return cloneMessage(message);
+        }
+
+        return {
+            ...message,
+            content: message.content.map((block) => {
+                const cloned = cloneBlock(block);
+                delete cloned.cache_control;
+                return cloned;
+            }),
+        };
+    });
+}
+
+export function shouldRetryWithoutCacheControl(input: { status: number; message: string }): boolean {
+    if (input.status !== 400 && input.status !== 422) {
+        return false;
+    }
+
+    return /cache[\s_-]*control/i.test(input.message);
+}

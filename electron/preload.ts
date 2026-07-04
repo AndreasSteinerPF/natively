@@ -1,5 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  MeetingCopilotEvent,
+  MeetingCopilotInvoke,
+} from './meeting-copilot/types';
 import type { SkillUploadPayload } from './services/skills/SkillValidator';
+
+// Meeting Copilot invoke types now include the read-only code tools; preload
+// still exposes only the shared invoke bridge, not a separate UI API.
+
+const MEETING_COPILOT_INVOKE_CHANNEL = 'meeting-copilot:invoke';
+const MEETING_COPILOT_EVENT_CHANNEL = 'meeting-copilot:event';
 
 /**
  * Metadata the companion extension sends with a captured page (drives the
@@ -15,6 +25,10 @@ interface DomCaptureMeta {
 
 // Types for the exposed Electron API
 interface ElectronAPI {
+  meetingCopilot: {
+    invoke: (payload: MeetingCopilotInvoke) => Promise<unknown>;
+    onEvent: (callback: (event: MeetingCopilotEvent) => void) => () => void;
+  };
   updateContentDimensions: (dimensions: { width: number; height: number }) => Promise<void>;
   updateContentDimensionsCentered: (dimensions: { width: number; height: number }) => Promise<void>;
   getRecognitionLanguages: () => Promise<Record<string, any>>;
@@ -1001,6 +1015,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   __evalInjectTranscript: (segment: { speaker: string; text: string; timestamp?: number; final?: boolean }) =>
     ipcRenderer.invoke('test-inject-transcript', segment),
   __evalProfileDebug: () => ipcRenderer.invoke('profile:get-status'),
+  meetingCopilot: {
+    invoke: (payload: MeetingCopilotInvoke) =>
+      ipcRenderer.invoke(MEETING_COPILOT_INVOKE_CHANNEL, payload),
+    onEvent: (callback: (event: MeetingCopilotEvent) => void) => {
+      const subscription = (_: any, event: MeetingCopilotEvent) => callback(event);
+      ipcRenderer.on(MEETING_COPILOT_EVENT_CHANNEL, subscription);
+      return () => {
+        ipcRenderer.removeListener(MEETING_COPILOT_EVENT_CHANNEL, subscription);
+      };
+    },
+  },
   updateContentDimensions: (dimensions: { width: number; height: number }) =>
     ipcRenderer.invoke('update-content-dimensions', dimensions),
   updateContentDimensionsCentered: (dimensions: { width: number; height: number }) =>

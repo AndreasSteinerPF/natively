@@ -173,6 +173,7 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { useResolvedTheme } from '../hooks/useResolvedTheme';
+import { useMeetingCopilot } from '../hooks/useMeetingCopilot';
 import { genMessageId } from '../utils/messageId';
 import { mapLanguageForPrism, isBlockCode } from '../utils/prismLanguage';
 import { registerPrismLanguages } from '../utils/registerPrismLanguages';
@@ -189,6 +190,8 @@ import type { DynamicActionPayload } from '../types/electron';
 import { getCodexCliModelDisplayName } from '../utils/modelUtils';
 import { getModifierSymbol, isMac } from '../utils/platformUtils';
 import { DynamicActionBar } from './dynamic-actions/DynamicActionBar';
+import { PinnedContextEditor } from './meeting-copilot/PinnedContextEditor';
+import { MeetingCopilotPanel } from './meeting-copilot/MeetingCopilotPanel';
 import GlassEffectLayer from './ui/GlassEffectLayer';
 import ResizeToggle from './ui/ResizeToggle';
 import RollingTranscript from './ui/RollingTranscript';
@@ -585,6 +588,7 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const [availableSkills, setAvailableSkills] = useState<SkillSummary[]>([]);
   const [skillPickerIndex, setSkillPickerIndex] = useState(0);
   const { shortcuts, isShortcutPressed } = useShortcuts();
+  const meetingCopilot = useMeetingCopilot();
   const [messages, setMessages] = useState<Message[]>([]);
   // Keep chat history visible once an answer lands until explicit clear / session reset.
   const [answerPanelPinned, setAnswerPanelPinned] = useState(false);
@@ -5990,6 +5994,13 @@ Provide only the answer, nothing else.`;
                   }}
                 />
               ) : null}
+
+              <PinnedContextEditor />
+
+              <MeetingCopilotPanel
+                state={meetingCopilot.state}
+                cancel={meetingCopilot.cancel}
+              />
 
               {/* Chat History - Only show if there are messages OR active states */}
               {showAnswerPanel && (

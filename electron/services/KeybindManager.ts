@@ -33,6 +33,13 @@ export const DEFAULT_KEYBINDS: KeybindConfig[] = [
     { id: 'chat:answer', label: 'Answer / Record', accelerator: 'CommandOrControl+5', isGlobal: true, defaultAccelerator: 'CommandOrControl+5' },
     { id: 'chat:codeHint', label: 'Get Code Hint', accelerator: 'CommandOrControl+6', isGlobal: true, defaultAccelerator: 'CommandOrControl+6' },
     { id: 'chat:brainstorm', label: 'Brainstorm Approaches', accelerator: 'CommandOrControl+7', isGlobal: true, defaultAccelerator: 'CommandOrControl+7' },
+    // Meeting Copilot - Global shortcuts (macOS v1)
+    { id: 'meeting-copilot:quick-answer', label: 'Quick Answer', accelerator: 'Command+Shift+1', isGlobal: true, defaultAccelerator: 'Command+Shift+1' },
+    { id: 'meeting-copilot:tech-solver', label: 'Tech Solver', accelerator: 'Command+Shift+2', isGlobal: true, defaultAccelerator: 'Command+Shift+2' },
+    { id: 'meeting-copilot:deep-solution', label: 'Deep Solution', accelerator: 'Command+Shift+3', isGlobal: true, defaultAccelerator: 'Command+Shift+3' },
+    { id: 'meeting-copilot:claim-check', label: 'Claim Check', accelerator: 'Command+Shift+4', isGlobal: true, defaultAccelerator: 'Command+Shift+4' },
+    { id: 'meeting-copilot:followups', label: 'Follow-up Questions', accelerator: 'Command+Shift+5', isGlobal: true, defaultAccelerator: 'Command+Shift+5' },
+    { id: 'meeting-copilot:tech-solver-parallel', label: 'Tech Solver: Fast + Deep', accelerator: 'Command+Shift+6', isGlobal: true, defaultAccelerator: 'Command+Shift+6' },
     // Scroll shortcuts are global so they work in stealth mode without the user
     // having to click the Natively window first (regression fix for issue #233).
     // Each press kicks an inertial scroll loop in the renderer: a single tap
@@ -100,6 +107,7 @@ export class KeybindManager {
         // Browser/page capture must work globally in both modes (same rationale
         // as the screenshot shortcuts — it's a global capture trigger).
         if (actionId === 'general:capture-dom') return true;
+        if (actionId.startsWith('meeting-copilot:')) return true;
 
         return false;
     }

@@ -18,6 +18,28 @@ import type { BrowserContextCategory, SafeWebsiteMetadata } from './services/bro
 import { SettingsManager } from './services/SettingsManager';
 import { SkillsManager } from './services/SkillsManager';
 import { DEFAULT_BUILTIN_SKILL_IDS, type SkillUploadPayload } from './services/skills/SkillValidator';
+import { ActionRunManager } from './meeting-copilot/ActionRunManager';
+import { ActionConfigStore } from './meeting-copilot/ActionConfigStore';
+import { buildMeetingCopilotContext } from './meeting-copilot/ContextBuilder';
+import { CodeTools } from './meeting-copilot/CodeTools';
+import { CodeWorkspaceStore } from './meeting-copilot/CodeWorkspaceStore';
+import {
+  DEFAULT_MEETING_COPILOT_CONFIG,
+  DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
+} from './meeting-copilot/defaultActionConfig';
+import { ProjectContextStore } from './meeting-copilot/ProjectContextStore';
+import { setMeetingCopilotActionStarter } from './meeting-copilot/hotkeys';
+import { registerMeetingCopilotIpc } from './meeting-copilot/ipc';
+import { MetricsStore } from './meeting-copilot/MetricsStore';
+import { FreshnessTools } from './meeting-copilot/FreshnessTools';
+import { OpenRouterClient } from './meeting-copilot/OpenRouterClient';
+import { ToolLoop } from './meeting-copilot/ToolLoop';
+import {
+  DEFAULT_PINNED_CONTEXT_TEMPLATE,
+  PinnedContextStore,
+} from './meeting-copilot/PinnedContextStore';
+import { buildOpenRouterMessages } from './meeting-copilot/PromptCache';
+import type { MeetingCopilotEvent } from './meeting-copilot/types';
 
 import { TRIAL_SENTINEL_KEY, DOM_CONTEXT_MAX_CHARS } from './config/constants';
 import { AI_RESPONSE_LANGUAGES, RECOGNITION_LANGUAGES } from './config/languages';
@@ -178,6 +200,116 @@ export function initializeIpcHandlers(appState: AppState): void {
     ipcMain.removeAllListeners(channel);
     ipcMain.on(channel, listener);
   };
+
+  let emitMeetingCopilotEvent = (_event: MeetingCopilotEvent) => {};
+  const meetingCopilotConfigStore = new ActionConfigStore({
+    configDir: path.join(app.getPath('userData'), 'meeting-copilot'),
+  });
+  let meetingCopilotConfig = DEFAULT_MEETING_COPILOT_CONFIG;
+  let meetingCopilotConfigWarning: string | undefined;
+  try {
+    meetingCopilotConfig = meetingCopilotConfigStore.loadSync();
+  } catch (error: any) {
+    meetingCopilotConfigWarning = `Meeting Copilot config failed to load: ${error?.message || String(error)}`;
+    console.warn(meetingCopilotConfigWarning);
+  }
+  const pinnedContextStore = new PinnedContextStore({
+    configDir: path.join(app.getPath('userData'), 'meeting-copilot'),
+    fileName: 'pinned-context.json',
+  });
+  const codeWorkspaceStore = new CodeWorkspaceStore(meetingCopilotConfig.workspaces);
+  const codeTools = new CodeTools({
+    workspaceStore: codeWorkspaceStore,
+    codeContext: meetingCopilotConfig.code_context,
+  });
+  const openRouterClient = new OpenRouterClient({
+    config: meetingCopilotConfig.openrouter,
+  });
+  const resolveMeetingCopilotOpenRouterApiKey = () =>
+    process.env[meetingCopilotConfig.openrouter.api_key_env] ??
+    process.env.OPENROUTER_API_KEY;
+  const freshnessTools = new FreshnessTools({
+    config: meetingCopilotConfig.openrouter,
+    apiKeyResolver: resolveMeetingCopilotOpenRouterApiKey,
+  });
+  const toolLoop = new ToolLoop({
+    openRouterClient,
+    codeTools,
+  });
+  const metricsStore = new MetricsStore();
+  const projectContextStore = new ProjectContextStore(meetingCopilotConfig.project_context, {
+    workspaceNames: meetingCopilotConfig.workspaces.map((workspace) => workspace.name),
+  });
+  const hasMeetingCopilotFreshnessTools = () =>
+    Boolean(resolveMeetingCopilotOpenRouterApiKey()?.trim());
+  let latestPinnedContext = DEFAULT_PINNED_CONTEXT_TEMPLATE;
+  const pinnedContextReady = pinnedContextStore.load().then((value) => {
+    latestPinnedContext = value;
+  }).catch((error) => {
+    console.warn('Failed to load Meeting Copilot pinned context:', error);
+  });
+  const meetingCopilotActionRunManager = new ActionRunManager({
+    config: meetingCopilotConfig,
+    // TODO(meeting-copilot M5+): replace the empty snapshot provider with the
+    // dedicated meeting transcript runtime feed once that slice owns the wiring.
+    transcriptSnapshotProvider: () => ({
+      meeting_id: 'meeting-copilot-live',
+      chunks: [],
+    }),
+    buildContext: buildMeetingCopilotContext,
+    buildMessages: buildOpenRouterMessages,
+    openRouterClient,
+    emitEvent: (event) => emitMeetingCopilotEvent(event),
+    toolLoop,
+    metricsStore,
+    getStableInstructions: () => DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
+    freshnessTools,
+    hasFreshnessTools: hasMeetingCopilotFreshnessTools,
+    getPinnedContext: async () => {
+      await pinnedContextReady;
+      return latestPinnedContext;
+    },
+    getProjectContext: async () => {
+      const bundle = await projectContextStore.loadDefaultBundle();
+      if (!meetingCopilotConfigWarning) {
+        return bundle;
+      }
+      return {
+        ...bundle,
+        warnings: [meetingCopilotConfigWarning, ...(bundle.warnings ?? [])],
+      };
+    },
+  });
+  setMeetingCopilotActionStarter((payload) => meetingCopilotActionRunManager.start(payload));
+  const meetingCopilotIpc = registerMeetingCopilotIpc({
+    ipcMain,
+    actionRunManager: meetingCopilotActionRunManager,
+    codeTools,
+    pinnedContextStore: {
+      async load() {
+        latestPinnedContext = await pinnedContextStore.load();
+        return latestPinnedContext;
+      },
+      async save(value) {
+        latestPinnedContext = await pinnedContextStore.save(value);
+        return latestPinnedContext;
+      },
+      async reset() {
+        latestPinnedContext = await pinnedContextStore.reset();
+        return latestPinnedContext;
+      },
+    },
+    webContents: {
+      send: (channel, payload) => {
+        BrowserWindow.getAllWindows().forEach((window) => {
+          if (!window.isDestroyed()) {
+            window.webContents.send(channel, payload);
+          }
+        });
+      },
+    },
+  });
+  emitMeetingCopilotEvent = meetingCopilotIpc.emitToRenderer;
 
   const escapeXmlText = (text: string): string =>
     text

@@ -405,6 +405,7 @@ import { ModelSelectorWindowHelper } from "./ModelSelectorWindowHelper"
 import { CropperWindowHelper } from "./CropperWindowHelper"
 import { ScreenshotHelper } from "./ScreenshotHelper"
 import { KeybindManager } from "./services/KeybindManager"
+import { startMeetingCopilotActionForKeybind } from "./meeting-copilot/hotkeys"
 import { ProcessingHelper } from "./ProcessingHelper"
 
 import { IntelligenceManager } from "./IntelligenceManager"
@@ -911,6 +912,8 @@ export class AppState {
           };
           const action = actionMap[actionId];
           this.sendToMeetingSurfaces('global-shortcut', { action });
+        } else if (await startMeetingCopilotActionForKeybind(actionId)) {
+          console.log(`[Main] Started Meeting Copilot action from hotkey: ${actionId}`);
 
         // Window movement — move window position without focus change
         } else if (actionId === 'window:move-up') {
