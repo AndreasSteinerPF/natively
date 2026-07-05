@@ -177,6 +177,9 @@ export const AIProvidersSettings: React.FC = () => {
     const [openaiApiKey, setOpenaiApiKey] = useState('');
     const [claudeApiKey, setClaudeApiKey] = useState('');
     const [deepseekApiKey, setDeepseekApiKey] = useState('');
+    // Used only by Meeting Copilot (electron/meeting-copilot/) — separate from the chat
+    // providers above, no preferred-model/test-connection support needed.
+    const [openRouterApiKey, setOpenRouterApiKey] = useState('');
 
     // --- LiteLLM proxy (OpenAI-compatible gateway: baseURL + optional virtual key) ---
     const [litellmBaseURL, setLitellmBaseURL] = useState('');
@@ -259,7 +262,8 @@ export const AIProvidersSettings: React.FC = () => {
                         claude: creds.hasClaudeKey,
                         deepseek: creds.hasDeepseekKey || false,
                         litellm: creds.hasLitellmBaseURL || false,
-                        natively: creds.hasNativelyKey || false
+                        natively: creds.hasNativelyKey || false,
+                        openrouter: creds.hasOpenRouterKey || false
                     });
                     // Prefill stored LiteLLM config so re-saving doesn't silently reset it.
                     // (baseURL is config, not a secret; the key stays masked/blank = keep.)
@@ -646,6 +650,8 @@ export const AIProvidersSettings: React.FC = () => {
             if (provider === 'claude') result = await window.electronAPI.setClaudeApiKey(key);
             // @ts-ignore
             if (provider === 'deepseek') result = await window.electronAPI.setDeepseekApiKey(key);
+            // @ts-ignore
+            if (provider === 'openrouter') result = await window.electronAPI.setOpenRouterApiKey(key);
 
             if (result && result.success) {
                 setSavedStatus(prev => ({ ...prev, [provider]: true }));
@@ -716,6 +722,8 @@ export const AIProvidersSettings: React.FC = () => {
             if (provider === 'claude') result = await window.electronAPI.setClaudeApiKey('');
             // @ts-ignore
             if (provider === 'deepseek') result = await window.electronAPI.setDeepseekApiKey('');
+            // @ts-ignore
+            if (provider === 'openrouter') result = await window.electronAPI.setOpenRouterApiKey('');
 
             if (result && result.success) {
                 setHasStoredKey(prev => ({ ...prev, [provider]: false }));
@@ -1107,6 +1115,55 @@ export const AIProvidersSettings: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={handleRemoveLitellm}
+                                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
+                                >
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* OpenRouter — used only by Meeting Copilot (fast/deep answer branches).
+                        Separate from the chat providers above: no preferred-model or
+                        test-connection support, just a single key read by resolveApiKey(). */}
+                    <div className="bg-bg-item-surface rounded-xl p-5 border border-border-subtle space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <label className="block text-xs font-bold text-text-primary mb-0">OpenRouter (Meeting Copilot)</label>
+                                <p className="text-[10px] text-text-secondary">
+                                    Used by Meeting Copilot's Quick Answer / Claim Check / Tech Solver actions.{' '}
+                                    <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-accent-primary hover:underline">Get a key</a>
+                                </p>
+                            </div>
+                            {hasStoredKey.openrouter && (
+                                <span className="text-[10px] font-medium text-emerald-500 uppercase tracking-wide">Configured</span>
+                            )}
+                        </div>
+
+                        <label className="space-y-1 block">
+                            <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">API Key</span>
+                            <input
+                                type="password"
+                                value={openRouterApiKey}
+                                onChange={e => setOpenRouterApiKey(e.target.value)}
+                                className="w-full bg-bg-input border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary font-mono focus:outline-none focus:border-accent-primary"
+                                placeholder={hasStoredKey.openrouter ? '•••••••• (leave blank to keep)' : 'sk-or-v1-...'}
+                            />
+                        </label>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={async () => { await handleSaveKey('openrouter', openRouterApiKey, setOpenRouterApiKey); }}
+                                disabled={!openRouterApiKey.trim() || !!savingStatus.openrouter}
+                                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-primary text-white disabled:opacity-50 transition-opacity"
+                            >
+                                {savingStatus.openrouter ? 'Saving…' : savedStatus.openrouter ? 'Saved ✓' : 'Save'}
+                            </button>
+                            {hasStoredKey.openrouter && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveKey('openrouter', setOpenRouterApiKey)}
                                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
                                 >
                                     Remove

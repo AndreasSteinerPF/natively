@@ -34,6 +34,7 @@ type ProviderPayload = {
     stream: boolean;
     tools?: unknown[];
     tool_choice?: 'auto' | 'none' | Record<string, unknown>;
+    plugins?: unknown[];
     reasoning?: OpenRouterChatCompletionRequest['reasoning'];
     session_id?: string;
 };
@@ -319,7 +320,7 @@ export class OpenRouterClient {
         const body = this.buildBody(request);
         const attempt = await this.post(body, request.signal);
         if (attempt.response.ok) {
-            return attempt;
+            return { response: attempt.response, retryUsed: false };
         }
 
         const retryDecision = await this.readRetryDecision(attempt.response);
@@ -370,6 +371,7 @@ export class OpenRouterClient {
             stream: request.stream,
             tools: request.tools,
             tool_choice: request.tool_choice,
+            plugins: request.plugins,
             reasoning: request.reasoning,
             session_id: request.session_id,
         };

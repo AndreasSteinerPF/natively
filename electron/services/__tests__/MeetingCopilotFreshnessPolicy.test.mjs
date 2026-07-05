@@ -88,7 +88,7 @@ describe('MeetingCopilot FreshnessPolicy', () => {
     assert.equal(fast.allowed, false);
   });
 
-  test('claim-check and deep-solution can request verification when tools are available', () => {
+  test('claim-check and tech-solver-parallel deep branch can request verification when tools are available', () => {
     const claimCheck = classify({
       actionId: 'claim-check',
       branch: 'single',
@@ -96,7 +96,7 @@ describe('MeetingCopilot FreshnessPolicy', () => {
       toolsAvailable: true,
     });
     const deepSolution = classify({
-      actionId: 'deep-solution',
+      actionId: 'tech-solver-parallel',
       branch: 'deep',
       prompt: 'Compare current pricing and context windows across providers.',
       toolsAvailable: true,
@@ -112,7 +112,7 @@ describe('MeetingCopilot FreshnessPolicy', () => {
 
   test('without tools, sensitive prompts stay unverified and currentness-uncertain', () => {
     const result = classify({
-      actionId: 'deep-solution',
+      actionId: 'tech-solver-parallel',
       branch: 'deep',
       prompt: 'What are the latest Anthropic model releases and prices?',
       toolsAvailable: false,

@@ -87,6 +87,12 @@ export interface ActionBranchConfig {
     tools_enabled?: boolean;
     max_tool_rounds?: number;
     max_tool_calls_per_round?: number;
+    web_search_enabled?: boolean;
+    /** Include the project docs pack even in `recent` context mode (normally docs are
+     *  `full_cached`-only). Meant for cheap/fast models relying on Gemini-style implicit
+     *  prompt caching — see ContextBuilder.ts's `recent` branch for the ordering this needs
+     *  (docs must precede the per-call-varying transcript section to stay cache-eligible). */
+    project_docs_enabled?: boolean;
     prompt: string;
 }
 
@@ -220,6 +226,7 @@ export interface OpenRouterChatCompletionRequest {
     messages: OpenRouterMessage[];
     tools?: unknown[];
     tool_choice?: 'auto' | 'none' | Record<string, unknown>;
+    plugins?: unknown[];
     reasoning?: ReasoningConfig;
     max_tokens: number;
     temperature: number;

@@ -116,8 +116,16 @@ type RunnerBranchConfig = {
     tools_enabled?: boolean;
     max_tool_rounds?: number;
     max_tool_calls_per_round?: number;
+    web_search_enabled?: boolean;
+    project_docs_enabled?: boolean;
     prompt: string;
 };
+
+// OpenRouter's built-in web plugin — injects live web search results (via Exa
+// by default) into the model's context before it answers, and returns
+// citations as `annotations` on the response. ~$0.005/call. No model-specific
+// wiring needed; works the same way regardless of which model runs the branch.
+const WEB_SEARCH_PLUGIN = [{ id: 'web' }];
 
 function sanitizeText(value: string): string {
     return redactForLog([value])
@@ -168,15 +176,17 @@ function isParallelAction(
     return 'parallel' in action;
 }
 
-function actionUsesFullCachedContext(action: MeetingCopilotActionConfig): boolean {
+function actionNeedsProjectContext(action: MeetingCopilotActionConfig): boolean {
     if (isParallelAction(action)) {
         return (
             action.parallel.fast.context_mode === 'full_cached' ||
-            action.parallel.deep.context_mode === 'full_cached'
+            action.parallel.deep.context_mode === 'full_cached' ||
+            Boolean(action.parallel.fast.project_docs_enabled) ||
+            Boolean(action.parallel.deep.project_docs_enabled)
         );
     }
 
-    return action.context_mode === 'full_cached';
+    return action.context_mode === 'full_cached' || Boolean(action.project_docs_enabled);
 }
 
 function isAbortError(error: unknown): boolean {
@@ -471,7 +481,7 @@ export class ActionRunManager {
 
             const snapshot = await this.transcriptSnapshotProvider();
             const pinnedContext = await this.getPinnedContext();
-            const projectContextBundle = actionUsesFullCachedContext(action)
+            const projectContextBundle = actionNeedsProjectContext(action)
                 ? await this.loadProjectContextBundle()
                 : emptyProjectContextBundle();
             const startedAt = this.now();
@@ -815,7 +825,12 @@ export class ActionRunManager {
         }
 
         const baseCodeContext = this.getCodeContext();
-        const projectDocsContext = input.projectContextBundle.text;
+        // full_cached branches always get the docs; recent-mode branches only opt in
+        // explicitly via project_docs_enabled (e.g. quick-answer) — a sibling branch in a
+        // parallel action (like tech-solver-parallel.fast) that didn't opt in stays lean.
+        const branchWantsProjectDocs =
+            input.branchConfig.context_mode === 'full_cached' || Boolean(input.branchConfig.project_docs_enabled);
+        const projectDocsContext = branchWantsProjectDocs ? input.projectContextBundle.text : '';
         const projectContextWarnings = input.projectContextBundle.warnings ?? [];
         const freshnessDecision = classifyFreshnessNeed({
             actionId: input.actionId,
@@ -936,6 +951,7 @@ export class ActionRunManager {
                 max_tokens: input.branchConfig.max_tokens,
                 temperature: input.branchConfig.temperature,
                 stream: true,
+                plugins: input.branchConfig.web_search_enabled ? WEB_SEARCH_PLUGIN : undefined,
                 reasoning: input.branchConfig.reasoning,
                 session_id: this.resolveSessionId({
                     runId: input.runId,

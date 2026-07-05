@@ -17,10 +17,7 @@ const { ActionConfigStore, validateMeetingCopilotConfig } = await import(
 
 const REQUIRED_ACTION_IDS = [
   'quick-answer',
-  'tech-solver',
-  'deep-solution',
   'claim-check',
-  'followups',
   'tech-solver-parallel',
 ];
 
@@ -34,35 +31,11 @@ const EXPECTED_DEFAULTS = {
       model: 'google/gemini-3.5-flash',
       slash: '/quick',
       button: false,
-      context_minutes: 2,
+      context_minutes: 4,
       max_tokens: 300,
       reasoning: 'low',
       temperature: 0.3,
-      prompt: 'Using the recent transcript, give me a concise answer I can say out loud in 1-3 sentences. Prioritize speed and usefulness.',
-    },
-    'tech-solver': {
-      model: 'anthropic/claude-opus-4.8-fast',
-      slash: '/tech',
-      button: false,
-      max_tokens: 700,
-      temperature: 0.25,
-      max_tool_rounds: 2,
-      max_tool_calls_per_round: 4,
-      reasoning: 'low',
-      prompt:
-        'You are helping me during a live technical or AI/product meeting. Use the full transcript, pinned context, custom context, and any relevant code context. Give the best practical answer under time pressure: recommendation, key reasoning, tradeoffs/risks, and one sentence I can say out loud.',
-    },
-    'deep-solution': {
-      model: 'anthropic/claude-opus-4.8-fast',
-      slash: '/deep',
-      button: false,
-      max_tokens: 1200,
-      temperature: 0.2,
-      max_tool_rounds: 3,
-      max_tool_calls_per_round: 6,
-      reasoning: 'medium',
-      prompt:
-        'Analyze the technical/product problem deeply. Use the full transcript, pinned context, custom context, and any relevant code context. Propose the best solution, alternatives, assumptions, tradeoffs, risks, and next steps. Be specific and avoid generic advice.',
+      prompt: "Using the recent transcript, give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a natural next thing to say). 1-3 sentences I can say out loud immediately. Prioritize speed and usefulness over completeness.",
     },
     'claim-check': {
       model: 'perplexity/sonar-pro-search',
@@ -72,34 +45,23 @@ const EXPECTED_DEFAULTS = {
       max_tokens: 600,
       temperature: 0.1,
       prompt:
-        'Check the last claim or proposal from the transcript. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.',
-    },
-    followups: {
-      model: 'google/gemini-3.5-flash',
-      slash: '/followups',
-      button: false,
-      context_minutes: 3,
-      max_tokens: 250,
-      temperature: 0.4,
-      reasoning: 'low',
-      prompt:
-        'Give me 3 sharp, non-confrontational follow-up questions to ask right now based on the recent transcript.',
+        "Check the most recent factual claim, number, or proposal in the transcript — mine or the INTERVIEWER's. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.",
     },
     'tech-solver-parallel': {
       slash: '/tech2',
       button: false,
       fast: {
         model: 'google/gemini-3.5-flash',
-        context_minutes: 3,
+        context_minutes: 5,
         max_tokens: 350,
         temperature: 0.3,
         tools_enabled: false,
         reasoning: 'low',
         prompt:
-          'Give me the fastest useful answer I can say out loud now. Keep it concise and practical.',
+          "Give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a next thing to say) — that I can say out loud immediately. Keep it concise and practical.",
       },
       deep: {
-        model: 'anthropic/claude-opus-4.8-fast',
+        model: 'anthropic/claude-opus-4.8',
         max_tokens: 900,
         temperature: 0.2,
         max_tool_rounds: 2,
@@ -107,7 +69,7 @@ const EXPECTED_DEFAULTS = {
         tools_enabled: true,
         reasoning: 'medium',
         prompt:
-          'Analyze more deeply. Improve, correct, or qualify the fast answer. Focus on technical correctness, AI-system design tradeoffs, hidden assumptions, and risks.',
+          'Give me a deeper, more thorough take than a fast reflexive answer would give — you do not see the fast answer, so do not assume or refer to what it said; just go as deep as the situation calls for. If the INTERVIEWER has a pending question, challenge, trade-off, or "what if you had done X instead" scenario, answer it thoroughly, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice. If nothing is pending, use the extra depth to surface a risk, trade-off, or angle on what I was just saying that a fast answer would miss. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider the choice under scrutiny.',
       },
     },
   },
@@ -151,15 +113,12 @@ describe('meeting-copilot action config defaults', () => {
     assert.deepEqual(Object.keys(DEFAULT_MEETING_COPILOT_CONFIG.actions), REQUIRED_ACTION_IDS);
   });
 
-  test('default hotkeys match Command+Shift+1 through Command+Shift+6', () => {
+  test('default hotkeys match Command+Shift+1 through Command+Shift+3', () => {
     const hotkeys = REQUIRED_ACTION_IDS.map((id) => DEFAULT_MEETING_COPILOT_CONFIG.actions[id].trigger.hotkey);
     assert.deepEqual(hotkeys, [
       'Command+Shift+1',
       'Command+Shift+2',
       'Command+Shift+3',
-      'Command+Shift+4',
-      'Command+Shift+5',
-      'Command+Shift+6',
     ]);
   });
 
@@ -176,7 +135,7 @@ describe('meeting-copilot action config defaults', () => {
   });
 
   test('single-action defaults include brief model slugs, slash commands, button=false, and token/context limits', () => {
-    for (const actionId of ['quick-answer', 'tech-solver', 'deep-solution', 'claim-check', 'followups']) {
+    for (const actionId of ['quick-answer', 'claim-check']) {
       const action = DEFAULT_MEETING_COPILOT_CONFIG.actions[actionId];
       const expected = EXPECTED_DEFAULTS.actions[actionId];
       assert.equal(action.model, expected.model, `${actionId} model`);
@@ -204,15 +163,9 @@ describe('meeting-copilot action config defaults', () => {
     }
   });
 
-  test('quick-answer, claim-check, and followups use recent context', () => {
+  test('quick-answer and claim-check use recent context', () => {
     assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['quick-answer'].context_mode, 'recent');
     assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['claim-check'].context_mode, 'recent');
-    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions.followups.context_mode, 'recent');
-  });
-
-  test('tech-solver and deep-solution use full_cached context', () => {
-    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['tech-solver'].context_mode, 'full_cached');
-    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['deep-solution'].context_mode, 'full_cached');
   });
 
   test('tech-solver-parallel.fast uses recent context and has tools disabled', () => {
@@ -242,6 +195,18 @@ describe('meeting-copilot action config defaults', () => {
     assert.equal(action.parallel.deep.tools_enabled, expected.tools_enabled);
   });
 
+  test('tech-solver-parallel.deep has web search enabled', () => {
+    const action = DEFAULT_MEETING_COPILOT_CONFIG.actions['tech-solver-parallel'];
+    assert.equal(action.parallel.deep.web_search_enabled, true);
+    assert.equal(action.parallel.fast.web_search_enabled, undefined);
+  });
+
+  test('quick-answer has project docs enabled; tech-solver-parallel.fast does not', () => {
+    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['quick-answer'].project_docs_enabled, true);
+    const parallel = DEFAULT_MEETING_COPILOT_CONFIG.actions['tech-solver-parallel'];
+    assert.equal(parallel.parallel.fast.project_docs_enabled, undefined);
+  });
+
   test('parallel action trigger includes the brief slash command and button=false', () => {
     const action = DEFAULT_MEETING_COPILOT_CONFIG.actions['tech-solver-parallel'];
     assert.equal(action.trigger.slash, EXPECTED_DEFAULTS.actions['tech-solver-parallel'].slash);
@@ -266,10 +231,10 @@ describe('meeting-copilot action config defaults', () => {
 describe('meeting-copilot action config validation', () => {
   test('invalid context mode is rejected with a useful path in the error', () => {
     const config = cloneConfig();
-    config.actions['tech-solver'].context_mode = 'invalid-mode';
+    config.actions['claim-check'].context_mode = 'invalid-mode';
     assert.throws(
       () => validateMeetingCopilotConfig(config),
-      /actions\.tech-solver\.context_mode must be one of recent, full_cached/
+      /actions\.claim-check\.context_mode must be one of recent, full_cached/
     );
   });
 
@@ -284,10 +249,10 @@ describe('meeting-copilot action config validation', () => {
 
   test('duplicate hotkeys are rejected', () => {
     const config = cloneConfig();
-    config.actions['followups'].trigger.hotkey = config.actions['quick-answer'].trigger.hotkey;
+    config.actions['claim-check'].trigger.hotkey = config.actions['quick-answer'].trigger.hotkey;
     assert.throws(
       () => validateMeetingCopilotConfig(config),
-      /actions\.followups\.trigger\.hotkey must be unique; duplicate Command\+Shift\+1/
+      /actions\.claim-check\.trigger\.hotkey must be unique; duplicate Command\+Shift\+1/
     );
   });
 
@@ -297,6 +262,24 @@ describe('meeting-copilot action config validation', () => {
     assert.throws(
       () => validateMeetingCopilotConfig(config),
       /actions\.quick-answer\.model must be a non-empty string/
+    );
+  });
+
+  test('invalid web_search_enabled is rejected', () => {
+    const config = cloneConfig();
+    config.actions['tech-solver-parallel'].parallel.deep.web_search_enabled = 'yes';
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /actions\.tech-solver-parallel\.parallel\.deep\.web_search_enabled must be a boolean/
+    );
+  });
+
+  test('invalid project_docs_enabled is rejected', () => {
+    const config = cloneConfig();
+    config.actions['quick-answer'].project_docs_enabled = 'yes';
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /actions\.quick-answer\.project_docs_enabled must be a boolean/
     );
   });
 
@@ -376,7 +359,7 @@ describe('ActionConfigStore', () => {
     assert.equal(config.actions['quick-answer'].trigger.slash, '/qa');
     assert.equal(config.workspaces[0].path, '/tmp/repo');
     assert.equal(store.getAction('quick-answer')?.label, 'Overridden Quick Answer');
-    assert.equal(store.listActions().length, 6);
+    assert.equal(store.listActions().length, 3);
 
     const unusedStore = new ActionConfigStore({
       configDir: unusedDir,

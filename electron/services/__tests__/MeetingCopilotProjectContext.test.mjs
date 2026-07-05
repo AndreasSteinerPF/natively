@@ -273,13 +273,41 @@ describe('meeting-copilot project context packs', () => {
     assert.equal(serialized.messages[0].content[2].cache_control.ttl, '1h');
   });
 
-  test('recent prompts omit the project docs section by default', () => {
+  test('recent prompts include the project docs section when provided, ordered before the transcript', () => {
+    // Quick-answer opts into this (project_docs_enabled) so cheap/fast models can still be
+    // grounded in project docs, relying on Gemini-style implicit prompt caching — which only
+    // hits if the docs stay part of the stable prefix, i.e. before the per-call-varying
+    // transcript. See ActionRunManager.ts's executeBranch() for the per-branch gate.
     const context = buildMeetingCopilotContext({
       mode: 'recent',
       snapshot: createSnapshot(),
       stableInstructions: 'Stable instructions',
       customContext: 'Custom context',
-      projectDocsContext: '<project_docs_context>\nShould not appear.\n</project_docs_context>',
+      projectDocsContext: '<project_docs_context>\nShould appear.\n</project_docs_context>',
+      pinnedContext: 'Pinned context',
+      codeContext: 'Code context',
+      currentAction: 'Current action',
+      contextMinutes: 5,
+      now: '2026-07-03T10:01:00.000Z',
+    });
+
+    assert.deepEqual(context.sections.map((section) => section.key), [
+      'stable_instructions',
+      'custom_context',
+      'project_docs_context',
+      'pinned_context',
+      'recent_transcript',
+      'current_action',
+    ]);
+  });
+
+  test('recent prompts omit the project docs section when none is provided', () => {
+    const context = buildMeetingCopilotContext({
+      mode: 'recent',
+      snapshot: createSnapshot(),
+      stableInstructions: 'Stable instructions',
+      customContext: 'Custom context',
+      projectDocsContext: '',
       pinnedContext: 'Pinned context',
       codeContext: 'Code context',
       currentAction: 'Current action',
@@ -298,7 +326,21 @@ describe('meeting-copilot project context packs', () => {
     const emitted = [];
     const metricsStore = new MetricsStore();
     const config = cloneConfig();
-    config.actions['tech-solver'].tools_enabled = false;
+    // Test-only fixture: a full_cached action. The real default config no
+    // longer ships a standalone full_cached action outside tech-solver-parallel's
+    // "deep" branch, but this test only needs full_cached context-mode behavior.
+    config.actions['tech-solver'] = {
+      label: 'tech-solver',
+      trigger: { hotkey: 'Test+tech-solver', slash: '/tech-solver', button: false },
+      model: 'anthropic/claude-opus-4.8-fast',
+      context_mode: 'full_cached',
+      cache_policy: 'anthropic_explicit_1h',
+      max_tokens: 700,
+      temperature: 0.25,
+      reasoning: { effort: 'low' },
+      tools_enabled: false,
+      prompt: 'Test full_cached action.',
+    };
 
     const manager = new ActionRunManager({
       config,

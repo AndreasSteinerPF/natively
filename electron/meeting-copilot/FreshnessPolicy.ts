@@ -109,11 +109,7 @@ function detectCategories(text: string): FreshnessCategory[] {
 }
 
 function actionAllowsFreshnessVerification(input: ClassifierInput): boolean {
-    if (input.actionId === 'claim-check' || input.actionId === 'deep-solution') {
-        return true
-    }
-
-    if (input.actionId === 'tech-solver' && input.branch === 'single') {
+    if (input.actionId === 'claim-check') {
         return true
     }
 
@@ -131,7 +127,6 @@ function canVerifyCurrentFacts(input: ClassifierInput): boolean {
 function shouldOnlyCaveat(input: ClassifierInput): boolean {
     return (
         input.actionId === 'quick-answer' ||
-        input.actionId === 'followups' ||
         (input.actionId === 'tech-solver-parallel' && input.branch === 'fast')
     )
 }

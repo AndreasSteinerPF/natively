@@ -223,12 +223,22 @@ export function initializeIpcHandlers(appState: AppState): void {
     workspaceStore: codeWorkspaceStore,
     codeContext: meetingCopilotConfig.code_context,
   });
+  // Checks the encrypted CredentialsManager store first (works no matter how the app is
+  // launched — Dock, Spotlight, double-click), then falls back to the env var (dev workflow:
+  // launching Electron from a terminal that already sourced OPENROUTER_API_KEY).
+  const resolveMeetingCopilotOpenRouterApiKey = () => {
+    const { CredentialsManager } = require('./services/CredentialsManager');
+    const stored = CredentialsManager.getInstance().getOpenRouterApiKey();
+    return (
+      stored ||
+      process.env[meetingCopilotConfig.openrouter.api_key_env] ||
+      process.env.OPENROUTER_API_KEY
+    );
+  };
   const openRouterClient = new OpenRouterClient({
     config: meetingCopilotConfig.openrouter,
+    apiKeyResolver: resolveMeetingCopilotOpenRouterApiKey,
   });
-  const resolveMeetingCopilotOpenRouterApiKey = () =>
-    process.env[meetingCopilotConfig.openrouter.api_key_env] ??
-    process.env.OPENROUTER_API_KEY;
   const freshnessTools = new FreshnessTools({
     config: meetingCopilotConfig.openrouter,
     apiKeyResolver: resolveMeetingCopilotOpenRouterApiKey,
@@ -3680,6 +3690,21 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
+  // Meeting Copilot's OpenRouterClient/FreshnessTools re-read the key on every request via
+  // apiKeyResolver (see resolveMeetingCopilotOpenRouterApiKey below), so unlike the keys above
+  // there's no LLMHelper/IntelligenceManager to re-init here — the new key takes effect on the
+  // next Meeting Copilot action immediately.
+  safeHandle('set-openrouter-api-key', async (_, apiKey: string) => {
+    try {
+      const { CredentialsManager } = require('./services/CredentialsManager');
+      CredentialsManager.getInstance().setOpenRouterApiKey(apiKey);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error saving OpenRouter API key:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   safeHandle('set-claude-api-key', async (_, apiKey: string) => {
     try {
       const { CredentialsManager } = require('./services/CredentialsManager');
@@ -4592,6 +4617,7 @@ export function initializeIpcHandlers(appState: AppState): void {
         hasGeminiKey: hasKey(creds.geminiApiKey),
         hasGroqKey: hasKey(creds.groqApiKey),
         hasOpenaiKey: hasKey(creds.openaiApiKey),
+        hasOpenRouterKey: hasKey(creds.openRouterApiKey),
         hasClaudeKey: hasKey(creds.claudeApiKey),
         hasDeepseekKey: hasKey(creds.deepseekApiKey),
         hasLitellmBaseURL: hasKey(creds.litellmBaseURL),

@@ -123,7 +123,7 @@ afterEach(() => {
 });
 
 describe('meeting-copilot hotkeys', () => {
-  test('default keybinds include the six Meeting Copilot accelerators', async () => {
+  test('default keybinds include the three Meeting Copilot accelerators', async () => {
     const { KeybindManager } = await loadKeybindManagerModule();
     KeybindManager.instance = undefined;
     const manager = KeybindManager.getInstance();
@@ -131,19 +131,13 @@ describe('meeting-copilot hotkeys', () => {
     assert.deepEqual(
       [
         manager.getKeybind('meeting-copilot:quick-answer'),
-        manager.getKeybind('meeting-copilot:tech-solver'),
-        manager.getKeybind('meeting-copilot:deep-solution'),
         manager.getKeybind('meeting-copilot:claim-check'),
-        manager.getKeybind('meeting-copilot:followups'),
         manager.getKeybind('meeting-copilot:tech-solver-parallel'),
       ],
       [
         'Command+Shift+1',
         'Command+Shift+2',
         'Command+Shift+3',
-        'Command+Shift+4',
-        'Command+Shift+5',
-        'Command+Shift+6',
       ]
     );
   });
@@ -154,7 +148,7 @@ describe('meeting-copilot hotkeys', () => {
       JSON.stringify(
         [
           { id: 'meeting-copilot:quick-answer', accelerator: 'Command+Shift+9' },
-          { id: 'meeting-copilot:followups', accelerator: 'Command+Shift+0' },
+          { id: 'meeting-copilot:claim-check', accelerator: 'Command+Shift+0' },
         ],
         null,
         2,
@@ -166,7 +160,7 @@ describe('meeting-copilot hotkeys', () => {
     const manager = KeybindManager.getInstance();
 
     assert.equal(manager.getKeybind('meeting-copilot:quick-answer'), 'Command+Shift+9');
-    assert.equal(manager.getKeybind('meeting-copilot:followups'), 'Command+Shift+0');
+    assert.equal(manager.getKeybind('meeting-copilot:claim-check'), 'Command+Shift+0');
   });
 
   test('launcher mode registers Meeting Copilot shortcuts through registerGlobalShortcuts', async () => {
@@ -179,14 +173,11 @@ describe('meeting-copilot hotkeys', () => {
 
     const shortcutIds = registrations.map((entry) => entry.accelerator);
     assert.ok(shortcutIds.includes('Command+Shift+1'));
-    assert.ok(shortcutIds.includes('Command+Shift+6'));
+    assert.ok(shortcutIds.includes('Command+Shift+3'));
 
     const meetingCopilotIds = [
       'meeting-copilot:quick-answer',
-      'meeting-copilot:tech-solver',
-      'meeting-copilot:deep-solution',
       'meeting-copilot:claim-check',
-      'meeting-copilot:followups',
       'meeting-copilot:tech-solver-parallel',
     ];
     for (const id of meetingCopilotIds) {
@@ -221,10 +212,7 @@ describe('meeting-copilot hotkeys', () => {
 
     assert.deepEqual(MEETING_COPILOT_HOTKEY_BINDINGS.map((binding) => binding.actionId), [
       'quick-answer',
-      'tech-solver',
-      'deep-solution',
       'claim-check',
-      'followups',
       'tech-solver-parallel',
     ]);
     assert.deepEqual(toMeetingCopilotActionStartPayload('meeting-copilot:quick-answer'), {

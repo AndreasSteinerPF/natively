@@ -63,6 +63,13 @@ export function buildMeetingCopilotContext(
             sections: [
                 section('stable_instructions', stableInstructions),
                 section('custom_context', input.customContext),
+                // Placed before pinned_context/recent_transcript so it stays part of the
+                // stable, byte-identical prefix across calls within a meeting — required for
+                // Gemini-style implicit prompt caching to hit (only enabled per-branch via
+                // project_docs_enabled; see ActionRunManager.ts's executeBranch()).
+                ...(input.projectDocsContext && input.projectDocsContext.trim().length > 0
+                    ? [section('project_docs_context', input.projectDocsContext, { cacheable: true, scope: 'data' })]
+                    : []),
                 section('pinned_context', input.pinnedContext),
                 section('recent_transcript', transcriptContent),
                 ...(input.dynamicEvidenceContext && input.dynamicEvidenceContext.trim().length > 0

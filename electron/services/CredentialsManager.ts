@@ -43,6 +43,9 @@ export interface StoredCredentials {
     geminiApiKey?: string;
     groqApiKey?: string;
     openaiApiKey?: string;
+    /** OpenRouter key used by Meeting Copilot (electron/meeting-copilot/). Falls back to the
+     *  OPENROUTER_API_KEY env var when unset, for dev-workflow compatibility. */
+    openRouterApiKey?: string;
     claudeApiKey?: string;
     deepseekApiKey?: string;
     litellmApiKey?: string;
@@ -222,6 +225,10 @@ export class CredentialsManager {
 
     public getOpenaiApiKey(): string | undefined {
         return this.credentials.openaiApiKey;
+    }
+
+    public getOpenRouterApiKey(): string | undefined {
+        return this.credentials.openRouterApiKey;
     }
 
     public getClaudeApiKey(): string | undefined {
@@ -424,6 +431,13 @@ export class CredentialsManager {
         this.credentials.openaiApiKey = trimmed || undefined;
         this.saveCredentials();
         console.log('[CredentialsManager] OpenAI API Key updated');
+    }
+
+    public setOpenRouterApiKey(key: string): void {
+        const trimmed = (key || '').trim();
+        this.credentials.openRouterApiKey = trimmed || undefined;
+        this.saveCredentials();
+        console.log('[CredentialsManager] OpenRouter API Key updated');
     }
 
     public setClaudeApiKey(key: string): void {

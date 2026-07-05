@@ -5,15 +5,16 @@ import {
     OpenRouterContentBlock,
     OpenRouterMessage,
     PromptSection,
+    PromptSectionKey,
 } from './types';
 
-const CACHEABLE_SECTION_KEYS = new Set([
+const CACHEABLE_SECTION_KEYS = new Set<PromptSectionKey>([
     'stable_instructions',
     'custom_context',
     'project_docs_context',
     'pinned_context',
     'meeting_transcript_so_far',
-] as const);
+]);
 
 function cloneBlock(block: OpenRouterContentBlock): OpenRouterContentBlock {
     return block.cache_control ? { ...block, cache_control: { ...block.cache_control } } : { ...block };

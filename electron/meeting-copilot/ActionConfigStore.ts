@@ -269,6 +269,22 @@ function validateBranch(value: unknown, pathName: string): ActionBranchConfig {
         );
     }
 
+    let webSearchEnabled: boolean | undefined;
+    if (value.web_search_enabled !== undefined) {
+        if (typeof value.web_search_enabled !== 'boolean') {
+            throw new Error(`${pathName}.web_search_enabled must be a boolean`);
+        }
+        webSearchEnabled = value.web_search_enabled;
+    }
+
+    let projectDocsEnabled: boolean | undefined;
+    if (value.project_docs_enabled !== undefined) {
+        if (typeof value.project_docs_enabled !== 'boolean') {
+            throw new Error(`${pathName}.project_docs_enabled must be a boolean`);
+        }
+        projectDocsEnabled = value.project_docs_enabled;
+    }
+
     return {
         model,
         context_mode: contextMode,
@@ -280,6 +296,8 @@ function validateBranch(value: unknown, pathName: string): ActionBranchConfig {
         tools_enabled: toolsEnabled,
         max_tool_rounds: maxToolRounds,
         max_tool_calls_per_round: maxToolCallsPerRound,
+        web_search_enabled: webSearchEnabled,
+        project_docs_enabled: projectDocsEnabled,
         prompt,
     };
 }

@@ -42,6 +42,31 @@ function cloneConfig() {
   return structuredClone(DEFAULT_MEETING_COPILOT_CONFIG);
 }
 
+// Test-only fixture: a single-branch, full_cached, tool-enabled action shape.
+// The real default config no longer ships standalone actions like this (that
+// capability now only exists as tech-solver-parallel's "deep" branch), but
+// ActionRunManager's generic full_cached/tool-loop/cache-control/cancellation
+// mechanics are still exercised the same way regardless of which action id
+// carries the config, so tests insert this fixture under an arbitrary key.
+function addFullCachedToolAction(config, actionId, overrides = {}) {
+  config.actions[actionId] = {
+    label: actionId,
+    trigger: { hotkey: `Test+${actionId}`, slash: `/${actionId}`, button: false },
+    model: 'anthropic/claude-opus-4.8-fast',
+    context_mode: 'full_cached',
+    cache_policy: 'anthropic_explicit_1h',
+    max_tokens: 700,
+    temperature: 0.25,
+    reasoning: { effort: 'low' },
+    tools_enabled: true,
+    max_tool_rounds: 2,
+    max_tool_calls_per_round: 4,
+    prompt: 'Test full_cached tool-enabled action.',
+    ...overrides,
+  };
+  return config.actions[actionId];
+}
+
 function collectUserText(request) {
   const userMessage = request.messages.find((message) => message.role === 'user');
   if (!userMessage) {
@@ -243,6 +268,22 @@ describe('meeting-copilot action runner', () => {
     const emitted = [];
     const openRouterCalls = [];
     const config = cloneConfig();
+    addFullCachedToolAction(config, 'tech-solver', {
+      max_tokens: 700,
+      temperature: 0.25,
+      reasoning: { effort: 'low' },
+      max_tool_rounds: 2,
+      max_tool_calls_per_round: 4,
+      prompt: 'Test tech-solver prompt.',
+    });
+    addFullCachedToolAction(config, 'deep-solution', {
+      max_tokens: 1200,
+      temperature: 0.2,
+      reasoning: { effort: 'medium' },
+      max_tool_rounds: 3,
+      max_tool_calls_per_round: 6,
+      prompt: 'Test deep-solution prompt.',
+    });
     const toolLoop = createToolLoopStub({
       evidenceText: '<code_context>\n[file: src/example.ts lines=42-42]\n...</code_context>',
       toolRounds: 1,
@@ -356,11 +397,11 @@ describe('meeting-copilot action runner', () => {
     assert.match(collectUserText(openRouterCalls[0]), /unverified\/currentness-uncertain/);
   });
 
-  test('deep-solution metrics mark freshness as unverified when tools are unavailable', async () => {
+  test('claim-check metrics mark freshness as unverified when tools are unavailable', async () => {
     const emitted = [];
     const config = cloneConfig();
-    config.actions['deep-solution'].tools_enabled = false;
-    config.actions['deep-solution'].prompt =
+    config.actions['claim-check'].tools_enabled = false;
+    config.actions['claim-check'].prompt =
       'Compare the current context windows and pricing for the latest OpenAI and Anthropic models.';
 
     const manager = new ActionRunManager({
@@ -387,7 +428,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'deep-solution' });
+    await manager.start({ actionId: 'claim-check' });
 
     const metricsEvent = emitted.find((event) => event.type === 'metrics:update');
     assert.equal(metricsEvent.metrics.freshness_check_used, undefined);
@@ -399,8 +440,8 @@ describe('meeting-copilot action runner', () => {
     const emitted = [];
     const openRouterCalls = [];
     const config = cloneConfig();
-    config.actions['deep-solution'].tools_enabled = false;
-    config.actions['deep-solution'].prompt =
+    config.actions['claim-check'].tools_enabled = false;
+    config.actions['claim-check'].prompt =
       'Compare the current context windows and pricing for the latest OpenAI and Anthropic models.';
 
     const manager = new ActionRunManager({
@@ -434,7 +475,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'deep-solution' });
+    await manager.start({ actionId: 'claim-check' });
 
     const metricsEvent = emitted.find((event) => event.type === 'metrics:update');
     assert.equal(metricsEvent.metrics.freshness_error, 'no_safe_model_id');
@@ -634,8 +675,11 @@ describe('meeting-copilot action runner', () => {
     const streamCalls = [];
     let manager;
 
+    const cancelTestConfig = cloneConfig();
+    addFullCachedToolAction(cancelTestConfig, 'tech-solver');
+
     manager = new ActionRunManager({
-      config: cloneConfig(),
+      config: cancelTestConfig,
       transcriptSnapshotProvider: () => snapshot,
       buildContext: buildMeetingCopilotContext,
       buildMessages: buildOpenRouterMessages,
@@ -701,8 +745,10 @@ describe('meeting-copilot action runner', () => {
       },
       apiKeyResolver: () => 'test-openrouter-key',
     });
+    const retryTestConfig = cloneConfig();
+    addFullCachedToolAction(retryTestConfig, 'tech-solver');
     const manager = new ActionRunManager({
-      config: cloneConfig(),
+      config: retryTestConfig,
       transcriptSnapshotProvider: () => createSnapshot(),
       buildContext: buildMeetingCopilotContext,
       buildMessages: buildOpenRouterMessages,
@@ -729,8 +775,10 @@ describe('meeting-copilot action runner', () => {
     const toolLoop = createToolLoopStub({
       evidenceText: '<code_context>\n[file: src/example.ts lines=1-3]\n...</code_context>',
     });
+    const contextLimitTestConfig = cloneConfig();
+    addFullCachedToolAction(contextLimitTestConfig, 'deep-solution');
     const manager = new ActionRunManager({
-      config: cloneConfig(),
+      config: contextLimitTestConfig,
       transcriptSnapshotProvider: () => createSnapshot(),
       buildContext: buildMeetingCopilotContext,
       buildMessages: buildOpenRouterMessages,
@@ -929,10 +977,10 @@ describe('meeting-copilot action runner', () => {
       emitEvent: (event) => emitted.push(event),
       createRunId: () => 'run-cancel',
       now: createClock([0, 5, 10]),
-      sessionId: 'meeting-123:followups',
+      sessionId: 'meeting-123:quick-answer',
     });
 
-    const runPromise = manager.start({ actionId: 'followups' });
+    const runPromise = manager.start({ actionId: 'quick-answer' });
     await flushMicrotasks();
     await manager.cancel({ runId: 'run-cancel', branch: 'all' });
     assert.equal(capturedSignal.aborted, true);
@@ -1363,6 +1411,7 @@ describe('meeting-copilot action runner', () => {
     const streamCalls = [];
     const config = cloneConfig();
     config.code_context.max_total_chars = 777;
+    addFullCachedToolAction(config, 'tech-solver');
     const manager = new ActionRunManager({
       config,
       transcriptSnapshotProvider: () => createSnapshot(),
@@ -1501,5 +1550,139 @@ describe('meeting-copilot action runner', () => {
     assert.equal(streamCalls.some((request) => request.model === config.actions['tech-solver-parallel'].parallel.fast.model), true);
     assert.equal(streamCalls.some((request) => request.model === config.actions['tech-solver-parallel'].parallel.deep.model), true);
     assert.equal(emitted.filter((event) => event.type === 'action:started').length, 1);
+  });
+
+  test('web_search_enabled adds the OpenRouter web plugin to that branch only', async () => {
+    const streamCalls = [];
+    const config = cloneConfig();
+    const manager = new ActionRunManager({
+      config,
+      transcriptSnapshotProvider: () => createSnapshot(),
+      buildContext: buildMeetingCopilotContext,
+      buildMessages: buildOpenRouterMessages,
+      openRouterClient: {
+        async *streamChatCompletion(request) {
+          streamCalls.push(request);
+          yield {
+            type: 'done',
+            result: {
+              content: 'done',
+              raw: {},
+              warnings: [],
+              usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+              metrics: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+            },
+          };
+        },
+      },
+      toolLoop: createToolLoopStub(),
+      emitEvent: () => {},
+      createRunId: () => 'run-web-search',
+      now: createClock([0, 1, 2, 3]),
+    });
+
+    await manager.start({ actionId: 'tech-solver-parallel' });
+
+    const fastRequest = streamCalls.find((request) => request.model === config.actions['tech-solver-parallel'].parallel.fast.model);
+    const deepRequest = streamCalls.find((request) => request.model === config.actions['tech-solver-parallel'].parallel.deep.model);
+    assert.equal(fastRequest.plugins, undefined);
+    assert.deepEqual(deepRequest.plugins, [{ id: 'web' }]);
+  });
+
+  test('project_docs_enabled feeds project docs into a recent-mode branch, ordered before the transcript', async () => {
+    const streamCalls = [];
+    const config = cloneConfig();
+    const docsMarker = '<project_docs_context>\n[pack: interview-prep file: cheat-sheet.md]\nDone Diligence details.\n</project_docs_context>';
+    const manager = new ActionRunManager({
+      config,
+      transcriptSnapshotProvider: () => createSnapshot(),
+      buildContext: buildMeetingCopilotContext,
+      buildMessages: buildOpenRouterMessages,
+      openRouterClient: {
+        async *streamChatCompletion(request) {
+          streamCalls.push(request);
+          yield {
+            type: 'done',
+            result: {
+              content: 'done',
+              raw: {},
+              warnings: [],
+              usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+              metrics: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+            },
+          };
+        },
+      },
+      emitEvent: () => {},
+      createRunId: () => 'run-project-docs',
+      now: createClock([0, 1]),
+      getProjectContext: async () => ({
+        included: true,
+        packNames: ['interview-prep'],
+        files: [{ packName: 'interview-prep', relativePath: 'cheat-sheet.md', chars: 42, text: 'Done Diligence details.' }],
+        text: docsMarker,
+        chars: docsMarker.length,
+        fileCount: 1,
+        warnings: [],
+        truncated: false,
+      }),
+    });
+
+    await manager.start({ actionId: 'quick-answer' });
+
+    const request = streamCalls[0];
+    const systemBlocks = request.messages[0].content;
+    const docsBlockIndex = systemBlocks.findIndex((block) => block.text.includes(docsMarker));
+    const transcriptBlockIndex = systemBlocks.findIndex((block) => block.text.includes('customer concern'));
+    assert.notEqual(docsBlockIndex, -1, 'quick-answer (project_docs_enabled) should receive the docs');
+    assert.ok(
+      docsBlockIndex < transcriptBlockIndex,
+      'docs must precede the per-call-varying transcript to stay Gemini-implicit-cache-eligible'
+    );
+  });
+
+  test('a recent-mode branch without project_docs_enabled does not receive project docs', async () => {
+    const streamCalls = [];
+    const config = cloneConfig();
+    const manager = new ActionRunManager({
+      config,
+      transcriptSnapshotProvider: () => createSnapshot(),
+      buildContext: buildMeetingCopilotContext,
+      buildMessages: buildOpenRouterMessages,
+      openRouterClient: {
+        async *streamChatCompletion(request) {
+          streamCalls.push(request);
+          yield {
+            type: 'done',
+            result: {
+              content: 'done',
+              raw: {},
+              warnings: [],
+              usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+              metrics: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+            },
+          };
+        },
+      },
+      emitEvent: () => {},
+      createRunId: () => 'run-no-project-docs',
+      now: createClock([0, 1]),
+      getProjectContext: async () => ({
+        included: true,
+        packNames: ['interview-prep'],
+        files: [],
+        text: '<project_docs_context>\nShould not appear for claim-check.\n</project_docs_context>',
+        chars: 10,
+        fileCount: 1,
+        warnings: [],
+        truncated: false,
+      }),
+    });
+
+    await manager.start({ actionId: 'claim-check' });
+
+    const request = streamCalls[0];
+    const systemBlocks = request.messages[0].content;
+    assert.ok(systemBlocks.every((block) => !block.text.includes('Should not appear for claim-check')));
   });
 });

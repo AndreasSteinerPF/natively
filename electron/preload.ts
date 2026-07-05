@@ -90,6 +90,7 @@ interface ElectronAPI {
   setGeminiApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
   setGroqApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
   setOpenaiApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
+  setOpenRouterApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
   setClaudeApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
   setDeepseekApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
   setLitellmConfig: (config: { apiKey: string; baseURL: string; maxTokens?: number }) => Promise<{ success: boolean; error?: string }>;
@@ -162,6 +163,7 @@ interface ElectronAPI {
     hasGeminiKey: boolean;
     hasGroqKey: boolean;
     hasOpenaiKey: boolean;
+    hasOpenRouterKey: boolean;
     hasClaudeKey: boolean;
     hasDeepseekKey: boolean;
     hasNativelyKey: boolean;
@@ -1283,6 +1285,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setGeminiApiKey: (apiKey: string) => ipcRenderer.invoke('set-gemini-api-key', apiKey),
   setGroqApiKey: (apiKey: string) => ipcRenderer.invoke('set-groq-api-key', apiKey),
   setOpenaiApiKey: (apiKey: string) => ipcRenderer.invoke('set-openai-api-key', apiKey),
+  setOpenRouterApiKey: (apiKey: string) => ipcRenderer.invoke('set-openrouter-api-key', apiKey),
   setClaudeApiKey: (apiKey: string) => ipcRenderer.invoke('set-claude-api-key', apiKey),
   setDeepseekApiKey: (apiKey: string) => ipcRenderer.invoke('set-deepseek-api-key', apiKey),
   setLitellmConfig: (config: { apiKey: string; baseURL: string; maxTokens?: number }) => ipcRenderer.invoke('set-litellm-config', config),

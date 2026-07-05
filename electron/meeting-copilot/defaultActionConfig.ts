@@ -13,6 +13,16 @@ export const DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     'Use project docs for orientation.',
     'Verify implementation-sensitive claims against code.',
     'When docs and code disagree, prefer code and say the docs appear stale, incomplete, or directionally correct only.',
+    '',
+    'Transcript lines are labeled [ME] (me, the user) or [INTERVIEWER] (the other person).',
+    'Your job is to help me in the discussion generally, not just answer literal questions.',
+    "If the INTERVIEWER has a pending question or challenge, answer it — even if my own [ME]",
+    'lines since then were me thinking out loud, restating it, or partway through an answer;',
+    'do not just react to the last line in the transcript. If the INTERVIEWER raised more than',
+    'one thing, prioritize whatever I have not yet addressed.',
+    'If nothing is pending, do not force an answer to a question that was not asked: instead',
+    'give me whatever would actually help right now — a sharper way to phrase what I am saying,',
+    'a detail I am at risk of forgetting, a gap or risk worth flagging, or a natural next point.',
 ].join('\n');
 
 export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
@@ -35,58 +45,24 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
             model: 'google/gemini-3.5-flash',
             context_mode: 'recent',
             cache_policy: 'none',
-            context_minutes: 2,
+            context_minutes: 4,
             max_tokens: 300,
             temperature: 0.3,
             reasoning: {
                 effort: 'low',
             },
-            prompt: 'Using the recent transcript, give me a concise answer I can say out loud in 1-3 sentences. Prioritize speed and usefulness.',
-        },
-        'tech-solver': {
-            label: 'Tech Solver',
-            trigger: {
-                hotkey: 'Command+Shift+2',
-                slash: '/tech',
-                button: false,
-            },
-            model: 'anthropic/claude-opus-4.8-fast',
-            context_mode: 'full_cached',
-            cache_policy: 'anthropic_explicit_1h',
-            max_tokens: 700,
-            temperature: 0.25,
-            reasoning: {
-                effort: 'low',
-            },
-            tools_enabled: true,
-            max_tool_rounds: 2,
-            max_tool_calls_per_round: 4,
-            prompt: 'You are helping me during a live technical or AI/product meeting. Use the full transcript, pinned context, custom context, and any relevant code context. Give the best practical answer under time pressure: recommendation, key reasoning, tradeoffs/risks, and one sentence I can say out loud.',
-        },
-        'deep-solution': {
-            label: 'Deep Solution',
-            trigger: {
-                hotkey: 'Command+Shift+3',
-                slash: '/deep',
-                button: false,
-            },
-            model: 'anthropic/claude-opus-4.8-fast',
-            context_mode: 'full_cached',
-            cache_policy: 'anthropic_explicit_1h',
-            max_tokens: 1200,
-            temperature: 0.2,
-            reasoning: {
-                effort: 'medium',
-            },
-            tools_enabled: true,
-            max_tool_rounds: 3,
-            max_tool_calls_per_round: 6,
-            prompt: 'Analyze the technical/product problem deeply. Use the full transcript, pinned context, custom context, and any relevant code context. Propose the best solution, alternatives, assumptions, tradeoffs, risks, and next steps. Be specific and avoid generic advice.',
+            // Gemini 2.5+ gets automatic implicit prompt caching (90% off cache hits, no
+            // cache_control needed) — repeated quick-answer presses within a few minutes
+            // mostly hit cache for this section, since ContextBuilder places it before the
+            // per-call-varying transcript. First press in a burst (or after a gap) still
+            // pays full price/latency for the docs.
+            project_docs_enabled: true,
+            prompt: "Using the recent transcript, give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a natural next thing to say). 1-3 sentences I can say out loud immediately. Prioritize speed and usefulness over completeness.",
         },
         'claim-check': {
             label: 'Claim Check',
             trigger: {
-                hotkey: 'Command+Shift+4',
+                hotkey: 'Command+Shift+2',
                 slash: '/check',
                 button: false,
             },
@@ -96,30 +72,12 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
             context_minutes: 5,
             max_tokens: 600,
             temperature: 0.1,
-            prompt: 'Check the last claim or proposal from the transcript. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.',
-        },
-        followups: {
-            label: 'Follow-up Questions',
-            trigger: {
-                hotkey: 'Command+Shift+5',
-                slash: '/followups',
-                button: false,
-            },
-            model: 'google/gemini-3.5-flash',
-            context_mode: 'recent',
-            cache_policy: 'none',
-            context_minutes: 3,
-            max_tokens: 250,
-            temperature: 0.4,
-            reasoning: {
-                effort: 'low',
-            },
-            prompt: 'Give me 3 sharp, non-confrontational follow-up questions to ask right now based on the recent transcript.',
+            prompt: "Check the most recent factual claim, number, or proposal in the transcript — mine or the INTERVIEWER's. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.",
         },
         'tech-solver-parallel': {
             label: 'Tech Solver: Fast + Deep',
             trigger: {
-                hotkey: 'Command+Shift+6',
+                hotkey: 'Command+Shift+3',
                 slash: '/tech2',
                 button: false,
             },
@@ -128,17 +86,17 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
                     model: 'google/gemini-3.5-flash',
                     context_mode: 'recent',
                     cache_policy: 'none',
-                    context_minutes: 3,
+                    context_minutes: 5,
                     max_tokens: 350,
                     temperature: 0.3,
                     reasoning: {
                         effort: 'low',
                     },
                     tools_enabled: false,
-                    prompt: 'Give me the fastest useful answer I can say out loud now. Keep it concise and practical.',
+                    prompt: "Give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a next thing to say) — that I can say out loud immediately. Keep it concise and practical.",
                 },
                 deep: {
-                    model: 'anthropic/claude-opus-4.8-fast',
+                    model: 'anthropic/claude-opus-4.8',
                     context_mode: 'full_cached',
                     cache_policy: 'anthropic_explicit_1h',
                     max_tokens: 900,
@@ -149,7 +107,8 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
                     tools_enabled: true,
                     max_tool_rounds: 2,
                     max_tool_calls_per_round: 4,
-                    prompt: 'Analyze more deeply. Improve, correct, or qualify the fast answer. Focus on technical correctness, AI-system design tradeoffs, hidden assumptions, and risks.',
+                    web_search_enabled: true,
+                    prompt: 'Give me a deeper, more thorough take than a fast reflexive answer would give — you do not see the fast answer, so do not assume or refer to what it said; just go as deep as the situation calls for. If the INTERVIEWER has a pending question, challenge, trade-off, or "what if you had done X instead" scenario, answer it thoroughly, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice. If nothing is pending, use the extra depth to surface a risk, trade-off, or angle on what I was just saying that a fast answer would miss. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider the choice under scrutiny.',
                 },
             },
         },
