@@ -12,6 +12,9 @@ export const RIPGREP_REQUIRED_MESSAGE =
 export const DEFAULT_EXCLUDED_GLOBS = [
     '.env',
     '.env.*',
+    // Catches any filename ending in `.env` (`.dev.env`, `staging.env`, etc.) —
+    // `.env`/`.env.*` above only match names that literally start with `.env`.
+    '*.env',
     '*.pem',
     '*.key',
     'id_rsa',
@@ -89,7 +92,7 @@ function isExcludedRelativePath(relativePath: string): boolean {
     if (basename === '.env' || basename === 'id_rsa' || basename === 'id_ed25519') {
         return true;
     }
-    if (basename.startsWith('.env.')) {
+    if (basename.startsWith('.env.') || basename.endsWith('.env')) {
         return true;
     }
     if (basename.endsWith('.pem') || basename.endsWith('.key')) {

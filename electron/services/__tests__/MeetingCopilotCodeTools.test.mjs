@@ -128,6 +128,8 @@ describe('meeting-copilot code tools', () => {
       fs.mkdirSync(path.join(workspaceRoot, 'build'), { recursive: true });
       fs.mkdirSync(path.join(workspaceRoot, 'target'), { recursive: true });
       fs.writeFileSync(path.join(workspaceRoot, '.env'), 'SECRET=1');
+      fs.writeFileSync(path.join(workspaceRoot, '.dev.env'), 'SECRET=1');
+      fs.writeFileSync(path.join(workspaceRoot, 'staging.env'), 'SECRET=1');
       fs.writeFileSync(path.join(workspaceRoot, 'id_rsa'), 'PRIVATE KEY');
       fs.writeFileSync(path.join(workspaceRoot, 'cert.pem'), 'CERT');
       fs.writeFileSync(path.join(workspaceRoot, '.git', 'config'), 'x');
@@ -150,6 +152,8 @@ describe('meeting-copilot code tools', () => {
       });
 
       await assert.rejects(() => tools.readFileSlice({ path: '.env' }), /excluded/i);
+      await assert.rejects(() => tools.readFileSlice({ path: '.dev.env' }), /excluded/i);
+      await assert.rejects(() => tools.readFileSlice({ path: 'staging.env' }), /excluded/i);
       await assert.rejects(() => tools.readFileSlice({ path: 'id_rsa' }), /excluded/i);
       await assert.rejects(() => tools.readFileSlice({ path: 'cert.pem' }), /excluded/i);
       await assert.rejects(() => tools.readFileSlice({ path: '.git/config' }), /excluded/i);
@@ -335,6 +339,7 @@ describe('meeting-copilot code tools', () => {
       assert.ok(calls[0].args.includes('never'));
       assert.ok(calls[0].args.some((arg) => arg === '--glob'));
       assert.ok(calls[0].args.some((arg) => arg === '!node_modules/'));
+      assert.ok(calls[0].args.some((arg) => arg === '!*.env'));
       assert.ok(calls[0].args.some((arg) => arg === 'Authorization'));
       assert.equal(hits.length, 1);
       assert.match(hits[0].preview, /Authorization: Bearer \[REDACTED\]/);
