@@ -915,10 +915,10 @@ const App: React.FC = () => {
       <UpdateBanner />
       <NativelyQuotaBanner />
 
-      {/* Orchestrated onboarding toasters (single-slot, controlled by OnboardingOrchestrator) */}
-      <OrchestratorProvider>
-        <OrchestratedToasterHost />
-      </OrchestratorProvider>
+      {/* Onboarding toaster host removed: its evaluateAndDispatch drain loop
+          triggers a Chromium Rust font-rasterizer crash (fontations_ffi) on
+          this machine, taking down the entire launcher window on every
+          launch. Personal build — the onboarding nudges aren't needed. */}
 
       {/* Free trial countdown banner — only in launcher window while trial is active */}
       {(isLauncherWindow || isDefault) && activeTrial && (

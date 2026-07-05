@@ -2,7 +2,7 @@
  * Energy-based Voice Activity Detection (VAD) at 16 kHz.
  *
  * Uses 30ms windows (480 samples), RMS threshold 0.008,
- * 700ms hangover (~23 frames), 250ms min speech duration (~8 frames),
+ * 720ms hangover (~24 frames), 120ms min speech duration (~4 frames),
  * and 15000ms max segment duration (force-flush).
  */
 
@@ -13,7 +13,24 @@ export interface SpeechSegment {
 
 const WINDOW_SIZE = 480;       // 30ms at 16kHz
 const RMS_THRESHOLD = 0.008;
-const HANGOVER_FRAMES = 10;    // ~300ms — must be shorter than Rust SilenceSuppressor hangover (500ms)
+// ~720ms — was 300ms (10 frames), which closed segments on ordinary mid-sentence
+// pauses (thinking, breathing) and fragmented transcripts into disconnected
+// phrases, hurting both readability and STT accuracy (short, context-free
+// fragments are more prone to mis-transcription than full sentences).
+//
+// An earlier revision capped this below the Rust SilenceSuppressor's
+// microphone hangover (500ms, see native-module/src/silence_suppression.rs
+// for_microphone()) on the theory that JS's segment-close needed to happen
+// before Rust started throttling audio. That theory doesn't hold: Rust's
+// `process()` always forwards real speech frames immediately regardless of
+// its internal suppression state (silence_suppression.rs process(), the
+// `has_speech` branch returns unconditionally before any hangover/suppressed
+// state check) — its hangover only governs when *silence* frames get
+// downgraded to lightweight keepalives, a bandwidth-saving optimization for
+// cloud STT billing that doesn't apply to local Whisper. So JS is free to
+// wait longer before declaring a segment done without ever missing or
+// delaying real speech that resumes mid-pause.
+const HANGOVER_FRAMES = 24;
 const MIN_SPEECH_FRAMES = 4;   // ~120ms minimum to avoid transcribing tiny noise bursts
 const MAX_SPEECH_MS = 15000;
 
