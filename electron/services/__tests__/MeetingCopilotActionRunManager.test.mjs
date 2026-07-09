@@ -397,11 +397,11 @@ describe('meeting-copilot action runner', () => {
     assert.match(collectUserText(openRouterCalls[0]), /unverified\/currentness-uncertain/);
   });
 
-  test('claim-check metrics mark freshness as unverified when tools are unavailable', async () => {
+  test('deep-answer metrics mark freshness as unverified when tools are unavailable', async () => {
     const emitted = [];
     const config = cloneConfig();
-    config.actions['claim-check'].tools_enabled = false;
-    config.actions['claim-check'].prompt =
+    config.actions['deep-answer'].tools_enabled = false;
+    config.actions['deep-answer'].prompt =
       'Compare the current context windows and pricing for the latest OpenAI and Anthropic models.';
 
     const manager = new ActionRunManager({
@@ -428,7 +428,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'deep-answer' });
 
     const metricsEvent = emitted.find((event) => event.type === 'metrics:update');
     assert.equal(metricsEvent.metrics.freshness_check_used, undefined);
@@ -440,8 +440,8 @@ describe('meeting-copilot action runner', () => {
     const emitted = [];
     const openRouterCalls = [];
     const config = cloneConfig();
-    config.actions['claim-check'].tools_enabled = false;
-    config.actions['claim-check'].prompt =
+    config.actions['deep-answer'].tools_enabled = false;
+    config.actions['deep-answer'].prompt =
       'Compare the current context windows and pricing for the latest OpenAI and Anthropic models.';
 
     const manager = new ActionRunManager({
@@ -475,7 +475,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'deep-answer' });
 
     const metricsEvent = emitted.find((event) => event.type === 'metrics:update');
     assert.equal(metricsEvent.metrics.freshness_error, 'no_safe_model_id');
@@ -484,12 +484,13 @@ describe('meeting-copilot action runner', () => {
     assert.match(collectUserText(openRouterCalls[0]), /unverified\/currentness-uncertain/);
   });
 
-  test('claim-check uses OpenRouter catalog freshness for safely recognized public model slugs', async () => {
+  test('deep-answer uses OpenRouter catalog freshness for safely recognized public model slugs', async () => {
     const emitted = [];
     const openRouterCalls = [];
     const freshnessCalls = [];
     const config = cloneConfig();
-    config.actions['claim-check'].prompt =
+    config.actions['deep-answer'].tools_enabled = false;
+    config.actions['deep-answer'].prompt =
       'Check whether openai/gpt-4.1 is currently available on OpenRouter and include its context window.';
 
     const manager = new ActionRunManager({
@@ -532,7 +533,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'deep-answer' });
 
     assert.deepEqual(freshnessCalls, ['openai/gpt-4.1']);
     const userText = collectUserText(openRouterCalls[0]);
@@ -562,7 +563,8 @@ describe('meeting-copilot action runner', () => {
     const emitted = [];
     const openRouterCalls = [];
     const config = cloneConfig();
-    config.actions['claim-check'].prompt =
+    config.actions['deep-answer'].tools_enabled = false;
+    config.actions['deep-answer'].prompt =
       'Check whether anthropic/claude-3.5-sonnet is currently available on OpenRouter.';
 
     const manager = new ActionRunManager({
@@ -596,7 +598,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'deep-answer' });
 
     assert.equal(openRouterCalls.length, 1);
     assert.match(collectUserText(openRouterCalls[0]), /unverified\/currentness-uncertain/);
@@ -616,7 +618,8 @@ describe('meeting-copilot action runner', () => {
     const openRouterCalls = [];
     const freshnessCalls = [];
     const config = cloneConfig();
-    config.actions['claim-check'].prompt =
+    config.actions['deep-answer'].tools_enabled = false;
+    config.actions['deep-answer'].prompt =
       'Check the current provider status for the model we discussed.';
     const snapshot = createSnapshot();
     snapshot.chunks[0].text =
@@ -654,7 +657,7 @@ describe('meeting-copilot action runner', () => {
       now: createClock([0, 5, 10]),
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'deep-answer' });
 
     assert.deepEqual(freshnessCalls, []);
     const userText = collectUserText(openRouterCalls[0]);
@@ -900,8 +903,10 @@ describe('meeting-copilot action runner', () => {
   test('streaming token events are bounded to 16k chars and completion emits TTFT and total latency metrics from the mocked stream clock', async () => {
     const emitted = [];
     const longToken = 'x'.repeat(20_000);
+    const config = cloneConfig();
+    config.actions['deep-answer'].tools_enabled = false;
     const manager = new ActionRunManager({
-      config: cloneConfig(),
+      config,
       transcriptSnapshotProvider: () => createSnapshot(),
       buildContext: buildMeetingCopilotContext,
       buildMessages: buildOpenRouterMessages,
@@ -931,17 +936,17 @@ describe('meeting-copilot action runner', () => {
       emitEvent: (event) => emitted.push(event),
       createRunId: () => 'run-ttft',
       now: createClock([100, 125, 180]),
-      sessionId: 'meeting-123:claim-check',
+      sessionId: 'meeting-123:deep-answer',
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'deep-answer' });
 
     assert.equal(emitted[1].type, 'action:token');
     assert.equal(emitted[1].token.length, 16_000);
     const completed = emitted.find((event) => event.type === 'action:completed');
     assert.equal(completed.metrics.time_to_first_token_ms, 25);
     assert.equal(completed.metrics.total_latency_ms, 80);
-    assert.equal(completed.metrics.action_id, 'claim-check');
+    assert.equal(completed.metrics.action_id, 'deep-answer');
     assert.equal(completed.metrics.meeting_id, 'meeting-123');
     assert.equal(completed.metrics.success, true);
   });
@@ -1038,7 +1043,7 @@ describe('meeting-copilot action runner', () => {
     await flushMicrotasks();
 
     await assert.rejects(
-      () => manager.start({ actionId: 'claim-check' }),
+      () => manager.start({ actionId: 'deep-answer' }),
       /Another Meeting Copilot action is already running/
     );
 
@@ -1642,6 +1647,9 @@ describe('meeting-copilot action runner', () => {
   });
 
   test('a recent-mode branch without project_docs_enabled does not receive project docs', async () => {
+    // tech-solver-parallel.fast is recent-mode without project_docs_enabled; its sibling
+    // .deep branch is full_cached (always gets docs when available) and tools_enabled, so this
+    // exercises the real "one branch opts in, its sibling doesn't" case, not just an isolated action.
     const streamCalls = [];
     const config = cloneConfig();
     const manager = new ActionRunManager({
@@ -1664,14 +1672,15 @@ describe('meeting-copilot action runner', () => {
           };
         },
       },
+      toolLoop: createToolLoopStub(),
       emitEvent: () => {},
       createRunId: () => 'run-no-project-docs',
-      now: createClock([0, 1]),
+      now: createClock([0, 1, 2, 3]),
       getProjectContext: async () => ({
         included: true,
         packNames: ['interview-prep'],
         files: [],
-        text: '<project_docs_context>\nShould not appear for claim-check.\n</project_docs_context>',
+        text: '<project_docs_context>\nShould not appear for tech-solver-parallel.fast.\n</project_docs_context>',
         chars: 10,
         fileCount: 1,
         warnings: [],
@@ -1679,10 +1688,10 @@ describe('meeting-copilot action runner', () => {
       }),
     });
 
-    await manager.start({ actionId: 'claim-check' });
+    await manager.start({ actionId: 'tech-solver-parallel' });
 
-    const request = streamCalls[0];
-    const systemBlocks = request.messages[0].content;
-    assert.ok(systemBlocks.every((block) => !block.text.includes('Should not appear for claim-check')));
+    const fastRequest = streamCalls.find((request) => request.model === config.actions['tech-solver-parallel'].parallel.fast.model);
+    const systemBlocks = fastRequest.messages[0].content;
+    assert.ok(systemBlocks.every((block) => !block.text.includes('Should not appear for tech-solver-parallel.fast')));
   });
 });

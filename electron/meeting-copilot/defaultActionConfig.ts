@@ -16,13 +16,16 @@ export const DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     '',
     'Transcript lines are labeled [ME] (me, the user) or [INTERVIEWER] (the other person).',
     'Your job is to help me in the discussion generally, not just answer literal questions.',
-    "If the INTERVIEWER has a pending question or challenge, answer it — even if my own [ME]",
-    'lines since then were me thinking out loud, restating it, or partway through an answer;',
-    'do not just react to the last line in the transcript. If the INTERVIEWER raised more than',
-    'one thing, prioritize whatever I have not yet addressed.',
-    'If nothing is pending, do not force an answer to a question that was not asked: instead',
-    'give me whatever would actually help right now — a sharper way to phrase what I am saying,',
-    'a detail I am at risk of forgetting, a gap or risk worth flagging, or a natural next point.',
+    "A question or challenge from the INTERVIEWER is PENDING only until my own [ME] lines give",
+    'it a real, substantive answer. While pending — I am thinking out loud, restating it, or only',
+    'partway through a first attempt — address it, not whatever else I happen to be saying.',
+    'The moment I have actually answered it, treat it as RESOLVED, even if no new INTERVIEWER',
+    "line has followed. Do not re-answer a resolved question just because it's the last one",
+    'asked — that is the most common mistake to avoid here. If the INTERVIEWER raised more than',
+    'one thing, prioritize whatever is still pending, not whatever came first.',
+    'Once resolved, or if nothing was ever asked, help me with whatever I am currently building',
+    'on — a sharper way to phrase what I am saying, a detail I am at risk of forgetting, a gap or',
+    'risk worth flagging, or a natural next point — not a stale question I already got through.',
 ].join('\n');
 
 export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
@@ -46,7 +49,11 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
             context_mode: 'recent',
             cache_policy: 'none',
             context_minutes: 4,
-            max_tokens: 300,
+            // No max_tokens: a fixed cap (previously 300) truncated answers mid-sentence once
+            // project_docs_enabled gave the model enough material to want to write more than
+            // that (finish_reason 'length', but the app had no way to detect that and
+            // mislabeled the truncated answer "Complete"). Omitting it lets the provider use
+            // the model's own max output; the prompt below is the real length control.
             temperature: 0.3,
             reasoning: {
                 effort: 'low',
@@ -57,22 +64,27 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
             // per-call-varying transcript. First press in a burst (or after a gap) still
             // pays full price/latency for the docs.
             project_docs_enabled: true,
-            prompt: "Using the recent transcript, give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a natural next thing to say). 1-3 sentences I can say out loud immediately. Prioritize speed and usefulness over completeness.",
+            prompt: "Using the recent transcript, give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a natural next thing to say). Strictly 1-3 sentences I can say out loud immediately, even though the project docs contain much more detail than that — pick the single most important detail rather than trying to cover everything. Prioritize speed and usefulness over completeness.",
         },
-        'claim-check': {
-            label: 'Claim Check',
+        'deep-answer': {
+            label: 'Deep Answer',
             trigger: {
                 hotkey: 'Command+Shift+2',
-                slash: '/check',
+                slash: '/deep',
                 button: false,
             },
-            model: 'perplexity/sonar-pro-search',
-            context_mode: 'recent',
-            cache_policy: 'none',
-            context_minutes: 5,
-            max_tokens: 600,
-            temperature: 0.1,
-            prompt: "Check the most recent factual claim, number, or proposal in the transcript — mine or the INTERVIEWER's. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.",
+            model: 'anthropic/claude-opus-4.8',
+            context_mode: 'full_cached',
+            cache_policy: 'anthropic_explicit_1h',
+            temperature: 0.2,
+            reasoning: {
+                effort: 'medium',
+            },
+            tools_enabled: true,
+            max_tool_rounds: 2,
+            max_tool_calls_per_round: 4,
+            web_search_enabled: true,
+            prompt: 'Give me a deep, thorough answer, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice — this is likely a deep-dive, trade-off, or "what if you had done X instead" question about a system I built, or something I said that deserves scrutiny. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider a choice under scrutiny. Keep it readable during a live interview: lead with the single most important point, then at most 2-3 short supporting points — do not write an essay, and stop once you have made the key points even if there is more you could say.',
         },
         'tech-solver-parallel': {
             label: 'Tech Solver: Fast + Deep',
@@ -87,7 +99,6 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
                     context_mode: 'recent',
                     cache_policy: 'none',
                     context_minutes: 5,
-                    max_tokens: 350,
                     temperature: 0.3,
                     reasoning: {
                         effort: 'low',
@@ -99,7 +110,6 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
                     model: 'anthropic/claude-opus-4.8',
                     context_mode: 'full_cached',
                     cache_policy: 'anthropic_explicit_1h',
-                    max_tokens: 900,
                     temperature: 0.2,
                     reasoning: {
                         effort: 'medium',
@@ -108,7 +118,7 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
                     max_tool_rounds: 2,
                     max_tool_calls_per_round: 4,
                     web_search_enabled: true,
-                    prompt: 'Give me a deeper, more thorough take than a fast reflexive answer would give — you do not see the fast answer, so do not assume or refer to what it said; just go as deep as the situation calls for. If the INTERVIEWER has a pending question, challenge, trade-off, or "what if you had done X instead" scenario, answer it thoroughly, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice. If nothing is pending, use the extra depth to surface a risk, trade-off, or angle on what I was just saying that a fast answer would miss. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider the choice under scrutiny.',
+                    prompt: 'Give me a deeper, more thorough take than a fast reflexive answer would give — you do not see the fast answer, so do not assume or refer to what it said; just go as deep as the situation calls for. If the INTERVIEWER has a pending question, challenge, trade-off, or "what if you had done X instead" scenario, answer it thoroughly, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice. If nothing is pending, use the extra depth to surface a risk, trade-off, or angle on what I was just saying that a fast answer would miss. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider the choice under scrutiny. Keep it readable during a live interview: lead with the single most important point, then at most 2-3 short supporting points — do not write an essay, and stop once you have made the key points even if there is more you could say.',
                 },
             },
         },

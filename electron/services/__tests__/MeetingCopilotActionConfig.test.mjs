@@ -17,7 +17,7 @@ const { ActionConfigStore, validateMeetingCopilotConfig } = await import(
 
 const REQUIRED_ACTION_IDS = [
   'quick-answer',
-  'claim-check',
+  'deep-answer',
   'tech-solver-parallel',
 ];
 
@@ -32,20 +32,20 @@ const EXPECTED_DEFAULTS = {
       slash: '/quick',
       button: false,
       context_minutes: 4,
-      max_tokens: 300,
       reasoning: 'low',
       temperature: 0.3,
-      prompt: "Using the recent transcript, give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a natural next thing to say). 1-3 sentences I can say out loud immediately. Prioritize speed and usefulness over completeness.",
+      prompt: "Using the recent transcript, give me the single most helpful thing to say right now — answer the INTERVIEWER's pending question if there is one, otherwise whatever would actually help (a sharper point, a risk to flag, a natural next thing to say). Strictly 1-3 sentences I can say out loud immediately, even though the project docs contain much more detail than that — pick the single most important detail rather than trying to cover everything. Prioritize speed and usefulness over completeness.",
     },
-    'claim-check': {
-      model: 'perplexity/sonar-pro-search',
-      slash: '/check',
+    'deep-answer': {
+      model: 'anthropic/claude-opus-4.8',
+      slash: '/deep',
       button: false,
-      context_minutes: 5,
-      max_tokens: 600,
-      temperature: 0.1,
+      temperature: 0.2,
+      reasoning: 'medium',
+      max_tool_rounds: 2,
+      max_tool_calls_per_round: 4,
       prompt:
-        "Check the most recent factual claim, number, or proposal in the transcript — mine or the INTERVIEWER's. Say whether it is likely correct, uncertain, incomplete, or likely wrong. Flag assumptions, factual uncertainty, logical gaps, and what evidence would resolve it.",
+        'Give me a deep, thorough answer, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice — this is likely a deep-dive, trade-off, or "what if you had done X instead" question about a system I built, or something I said that deserves scrutiny. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider a choice under scrutiny. Keep it readable during a live interview: lead with the single most important point, then at most 2-3 short supporting points — do not write an essay, and stop once you have made the key points even if there is more you could say.',
     },
     'tech-solver-parallel': {
       slash: '/tech2',
@@ -53,7 +53,6 @@ const EXPECTED_DEFAULTS = {
       fast: {
         model: 'google/gemini-3.5-flash',
         context_minutes: 5,
-        max_tokens: 350,
         temperature: 0.3,
         tools_enabled: false,
         reasoning: 'low',
@@ -62,14 +61,13 @@ const EXPECTED_DEFAULTS = {
       },
       deep: {
         model: 'anthropic/claude-opus-4.8',
-        max_tokens: 900,
         temperature: 0.2,
         max_tool_rounds: 2,
         max_tool_calls_per_round: 4,
         tools_enabled: true,
         reasoning: 'medium',
         prompt:
-          'Give me a deeper, more thorough take than a fast reflexive answer would give — you do not see the fast answer, so do not assume or refer to what it said; just go as deep as the situation calls for. If the INTERVIEWER has a pending question, challenge, trade-off, or "what if you had done X instead" scenario, answer it thoroughly, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice. If nothing is pending, use the extra depth to surface a risk, trade-off, or angle on what I was just saying that a fast answer would miss. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider the choice under scrutiny.',
+          'Give me a deeper, more thorough take than a fast reflexive answer would give — you do not see the fast answer, so do not assume or refer to what it said; just go as deep as the situation calls for. If the INTERVIEWER has a pending question, challenge, trade-off, or "what if you had done X instead" scenario, answer it thoroughly, grounded in the project docs and code tools (real numbers, names, decisions) instead of generic advice. If nothing is pending, use the extra depth to surface a risk, trade-off, or angle on what I was just saying that a fast answer would miss. Focus on technical correctness, design trade-offs, hidden assumptions, risks, and how I would defend or reconsider the choice under scrutiny. Keep it readable during a live interview: lead with the single most important point, then at most 2-3 short supporting points — do not write an essay, and stop once you have made the key points even if there is more you could say.',
       },
     },
   },
@@ -109,7 +107,7 @@ describe('meeting-copilot action config defaults', () => {
     assert.doesNotThrow(() => validateMeetingCopilotConfig(cloneConfig()));
   });
 
-  test('default config includes exactly the six required action IDs', () => {
+  test('default config includes exactly the three required action IDs', () => {
     assert.deepEqual(Object.keys(DEFAULT_MEETING_COPILOT_CONFIG.actions), REQUIRED_ACTION_IDS);
   });
 
@@ -135,7 +133,7 @@ describe('meeting-copilot action config defaults', () => {
   });
 
   test('single-action defaults include brief model slugs, slash commands, button=false, and token/context limits', () => {
-    for (const actionId of ['quick-answer', 'claim-check']) {
+    for (const actionId of ['quick-answer', 'deep-answer']) {
       const action = DEFAULT_MEETING_COPILOT_CONFIG.actions[actionId];
       const expected = EXPECTED_DEFAULTS.actions[actionId];
       assert.equal(action.model, expected.model, `${actionId} model`);
@@ -163,9 +161,9 @@ describe('meeting-copilot action config defaults', () => {
     }
   });
 
-  test('quick-answer and claim-check use recent context', () => {
+  test('quick-answer uses recent context; deep-answer uses full_cached', () => {
     assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['quick-answer'].context_mode, 'recent');
-    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['claim-check'].context_mode, 'recent');
+    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['deep-answer'].context_mode, 'full_cached');
   });
 
   test('tech-solver-parallel.fast uses recent context and has tools disabled', () => {
@@ -207,6 +205,14 @@ describe('meeting-copilot action config defaults', () => {
     assert.equal(parallel.parallel.fast.project_docs_enabled, undefined);
   });
 
+  test('no action sets a fixed max_tokens cap by default, to avoid truncating answers mid-sentence', () => {
+    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['quick-answer'].max_tokens, undefined);
+    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.actions['deep-answer'].max_tokens, undefined);
+    const parallel = DEFAULT_MEETING_COPILOT_CONFIG.actions['tech-solver-parallel'];
+    assert.equal(parallel.parallel.fast.max_tokens, undefined);
+    assert.equal(parallel.parallel.deep.max_tokens, undefined);
+  });
+
   test('parallel action trigger includes the brief slash command and button=false', () => {
     const action = DEFAULT_MEETING_COPILOT_CONFIG.actions['tech-solver-parallel'];
     assert.equal(action.trigger.slash, EXPECTED_DEFAULTS.actions['tech-solver-parallel'].slash);
@@ -231,10 +237,10 @@ describe('meeting-copilot action config defaults', () => {
 describe('meeting-copilot action config validation', () => {
   test('invalid context mode is rejected with a useful path in the error', () => {
     const config = cloneConfig();
-    config.actions['claim-check'].context_mode = 'invalid-mode';
+    config.actions['deep-answer'].context_mode = 'invalid-mode';
     assert.throws(
       () => validateMeetingCopilotConfig(config),
-      /actions\.claim-check\.context_mode must be one of recent, full_cached/
+      /actions\.deep-answer\.context_mode must be one of recent, full_cached/
     );
   });
 
@@ -249,10 +255,10 @@ describe('meeting-copilot action config validation', () => {
 
   test('duplicate hotkeys are rejected', () => {
     const config = cloneConfig();
-    config.actions['claim-check'].trigger.hotkey = config.actions['quick-answer'].trigger.hotkey;
+    config.actions['deep-answer'].trigger.hotkey = config.actions['quick-answer'].trigger.hotkey;
     assert.throws(
       () => validateMeetingCopilotConfig(config),
-      /actions\.claim-check\.trigger\.hotkey must be unique; duplicate Command\+Shift\+1/
+      /actions\.deep-answer\.trigger\.hotkey must be unique; duplicate Command\+Shift\+1/
     );
   });
 

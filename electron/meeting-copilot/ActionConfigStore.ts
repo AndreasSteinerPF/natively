@@ -223,7 +223,10 @@ function validateBranch(value: unknown, pathName: string): ActionBranchConfig {
     const model = requireNonEmptyString(value.model, `${pathName}.model`);
     const contextMode = requireEnum(value.context_mode, `${pathName}.context_mode`, CONTEXT_MODES);
     const cachePolicy = requireEnum(value.cache_policy, `${pathName}.cache_policy`, CACHE_POLICIES);
-    const maxTokens = requirePositiveInteger(value.max_tokens, `${pathName}.max_tokens`);
+    let maxTokens: number | undefined;
+    if (value.max_tokens !== undefined) {
+        maxTokens = requirePositiveInteger(value.max_tokens, `${pathName}.max_tokens`);
+    }
     const temperature = requireFiniteNumber(value.temperature, `${pathName}.temperature`);
     const prompt = requireNonEmptyString(value.prompt, `${pathName}.prompt`);
 

@@ -7,7 +7,7 @@ export interface MeetingCopilotHotkeyBinding {
 
 export const MEETING_COPILOT_HOTKEY_BINDINGS: MeetingCopilotHotkeyBinding[] = [
     { keybindId: 'meeting-copilot:quick-answer', actionId: 'quick-answer' },
-    { keybindId: 'meeting-copilot:claim-check', actionId: 'claim-check' },
+    { keybindId: 'meeting-copilot:deep-answer', actionId: 'deep-answer' },
     { keybindId: 'meeting-copilot:tech-solver-parallel', actionId: 'tech-solver-parallel' },
 ];
 

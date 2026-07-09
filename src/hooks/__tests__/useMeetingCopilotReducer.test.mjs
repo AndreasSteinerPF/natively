@@ -150,7 +150,7 @@ describe('useMeetingCopilot reducer', () => {
     );
     state = meetingCopilotReducer(
       state,
-      createStartedEvent({ runId: 'run-2', actionId: 'claim-check', label: 'Claim Check' })
+      createStartedEvent({ runId: 'run-2', actionId: 'deep-answer', label: 'Deep Answer' })
     );
     state = meetingCopilotReducer(state, {
       type: 'action:token',

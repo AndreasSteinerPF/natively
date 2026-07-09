@@ -1131,7 +1131,7 @@ export const AIProvidersSettings: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-text-primary mb-0">OpenRouter (Meeting Copilot)</label>
                                 <p className="text-[10px] text-text-secondary">
-                                    Used by Meeting Copilot's Quick Answer / Claim Check / Tech Solver actions.{' '}
+                                    Used by Meeting Copilot's Quick Answer / Deep Answer / Tech Solver actions.{' '}
                                     <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="text-accent-primary hover:underline">Get a key</a>
                                 </p>
                             </div>

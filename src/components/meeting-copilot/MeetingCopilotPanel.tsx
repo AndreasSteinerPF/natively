@@ -11,7 +11,6 @@ import type {
   MeetingCopilotRun,
   MeetingCopilotState,
 } from '../../hooks/useMeetingCopilot';
-import { MetricsDebugPanel } from './MetricsDebugPanel';
 
 type MeetingCopilotPanelProps = {
   state: MeetingCopilotState;
@@ -43,74 +42,6 @@ function statusTone(status: MeetingCopilotRun['status']): string {
     default:
       return 'bg-sky-500/10 text-sky-300 border-sky-500/20';
   }
-}
-
-function formatMetricChip(label: string, value: string | number | boolean | undefined) {
-  if (value === undefined || value === null || value === '') {
-    return null;
-  }
-
-  return (
-    <span
-      key={label}
-      className="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] overlay-text-muted"
-    >
-      {label} {String(value)}
-    </span>
-  );
-}
-
-function runMetadata(run: MeetingCopilotRun) {
-  return [
-    formatMetricChip('Model', run.metrics?.model),
-    formatMetricChip('Context', run.metrics?.context_mode),
-    formatMetricChip(
-      'Code',
-      run.metrics?.code_context_included === undefined
-        ? undefined
-        : run.metrics.code_context_included
-          ? 'Yes'
-          : run.metrics.code_context_included === false
-            ? 'No'
-          : undefined
-    ),
-    formatMetricChip(
-      'Project docs',
-      run.metrics?.project_context_included === undefined
-        ? undefined
-        : run.metrics.project_context_included
-          ? 'Included'
-          : 'No'
-    ),
-    formatMetricChip(
-      'Packs',
-      run.metrics?.project_context_pack_names?.length
-        ? run.metrics.project_context_pack_names.join(', ')
-        : undefined
-    ),
-    formatMetricChip(
-      'Docs chars',
-      run.metrics?.project_context_chars !== undefined
-        ? `${run.metrics.project_context_chars}`
-        : undefined
-    ),
-    formatMetricChip(
-      'Files',
-      run.metrics?.project_context_file_count !== undefined
-        ? run.metrics.project_context_file_count
-        : undefined
-    ),
-    formatMetricChip(
-      'Freshness',
-      run.metrics?.freshness_check_used
-        ? `Verified${run.metrics.freshness_result_count !== undefined ? ` ${run.metrics.freshness_result_count}` : ''}`
-        : run.metrics?.freshness_error
-          ? 'Unverified'
-          : undefined
-    ),
-    formatMetricChip('TTFT', run.metrics?.time_to_first_token_ms !== undefined ? `${run.metrics.time_to_first_token_ms}ms` : undefined),
-    formatMetricChip('Latency', run.metrics?.total_latency_ms !== undefined ? `${run.metrics.total_latency_ms}ms` : undefined),
-  ].filter(Boolean);
 }
 
 export function MeetingCopilotPanel({
@@ -198,11 +129,6 @@ export function MeetingCopilotPanel({
                       {STATUS_LABELS[run.status]}
                     </span>
                   </div>
-                  {runMetadata(run).length > 0 ? (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {runMetadata(run)}
-                    </div>
-                  ) : null}
                 </button>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
@@ -297,8 +223,6 @@ export function MeetingCopilotPanel({
             </section>
           );
         })}
-
-        <MetricsDebugPanel metrics={selectedRun?.metrics ?? state.latestMetrics} />
       </div>
     </div>
   );

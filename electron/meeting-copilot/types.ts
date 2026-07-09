@@ -81,7 +81,10 @@ export interface ActionBranchConfig {
     context_mode: ContextMode;
     cache_policy: CachePolicy;
     context_minutes?: number;
-    max_tokens: number;
+    /** Omit to let the provider use the model's own max output — avoids truncating
+     *  responses mid-sentence when a branch has more to say than a fixed cap allows
+     *  (e.g. project_docs_enabled giving a cheap model much more material to draw on). */
+    max_tokens?: number;
     temperature: number;
     reasoning?: ReasoningConfig;
     tools_enabled?: boolean;
@@ -228,7 +231,7 @@ export interface OpenRouterChatCompletionRequest {
     tool_choice?: 'auto' | 'none' | Record<string, unknown>;
     plugins?: unknown[];
     reasoning?: ReasoningConfig;
-    max_tokens: number;
+    max_tokens?: number;
     temperature: number;
     stream: boolean;
     session_id?: string;
@@ -243,6 +246,9 @@ export interface OpenRouterChatCompletionResult {
     metrics: LlmCallMetrics;
     tool_calls?: unknown[];
     usage?: OpenRouterUsage;
+    /** From the model's final chunk/response (e.g. 'stop', 'length', 'tool_calls').
+     *  'length' means the response was cut off by max_tokens, not a natural stop. */
+    finish_reason?: string;
 }
 
 export type OpenRouterStreamEvent =

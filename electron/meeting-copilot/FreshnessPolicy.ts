@@ -109,7 +109,7 @@ function detectCategories(text: string): FreshnessCategory[] {
 }
 
 function actionAllowsFreshnessVerification(input: ClassifierInput): boolean {
-    if (input.actionId === 'claim-check') {
+    if (input.actionId === 'deep-answer') {
         return true
     }
 

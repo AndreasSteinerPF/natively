@@ -497,6 +497,114 @@ that asserted `recent` mode *always* omits project docs), config-shape tests in
 `MeetingCopilotActionRunManager.test.mjs` (quick-answer receives docs ordered before the transcript;
 claim-check, without the flag, never does). Full suite: 159 meeting-copilot tests passing.
 
+### Truncated answers ("Complete" but cut off mid-sentence) and debug UI removal (2026-07-06)
+
+Live testing surfaced a real, reproducible bug: Quick Answer responses were sometimes cut off
+mid-sentence (e.g. "...in v2, we traded that" with nothing after) while still showing a green
+"Complete" badge. Root cause: `OpenRouterClient.ts`'s streaming loop only ever extracted
+`delta.content` tokens and `usage` from each SSE chunk — it never read `choice.finish_reason` at
+all, so the app had **no way to distinguish** a natural stop (`finish_reason: 'stop'`) from a
+hard cutoff at the token budget (`finish_reason: 'length'`). Every non-errored, non-cancelled
+stream got labeled "Complete" regardless. This became much more likely to trigger for
+`quick-answer` specifically once `project_docs_enabled` (previous entry) gave the cheap/fast model
+enough material to want to write well past its `max_tokens: 300` cap.
+
+Two things were fixed, not just papered over:
+
+1. **`finish_reason` is now captured** end-to-end — tracked across streaming chunks in
+   `OpenRouterClient.ts` (mirrors how `usage` is aggregated: keep the latest non-empty value seen,
+   thread it into the same synthetic `raw` object passed to `buildResult()` at both the `[DONE]`
+   and stream-exhausted exit points) and extracted in `buildResult()` for the non-streaming path
+   too (`createChatCompletion()` already gets it for free from the real API response). Added to
+   `OpenRouterChatCompletionResult.finish_reason`. This is available for future diagnosis/telemetry
+   even though nothing surfaces it as a user-facing warning (see next point for why).
+
+2. **Removed the fixed `max_tokens` cap from all 4 branches** (`quick-answer`, `claim-check`,
+   `tech-solver-parallel.fast`, `tech-solver-parallel.deep`) in `defaultActionConfig.ts`, rather
+   than just raising the numbers or showing a "truncated" warning band-aid — per explicit
+   direction: fix the cause, don't decorate the symptom. `max_tokens` is now optional end-to-end:
+   `ActionBranchConfig`/`RunnerBranchConfig`/`OpenRouterChatCompletionRequest`/the internal
+   `ProviderPayload` type in `OpenRouterClient.ts` (`types.ts`, `ActionRunManager.ts`,
+   `OpenRouterClient.ts`), `ActionConfigStore.ts`'s `validateBranch()` only validates it when
+   present, and `buildBody()` passes `request.max_tokens` straight through — when `undefined`,
+   `JSON.stringify` drops the key entirely, so OpenRouter/the provider falls back to the model's
+   own real output ceiling instead of an artificial one we invented. The actual length control is
+   now purely the prompt (quick-answer's prompt already says "strictly 1-3 sentences... even
+   though the project docs contain much more detail than that"), not a token budget that could
+   truncate a legitimate longer answer mid-word. Added a regression test in
+   `MeetingCopilotActionConfig.test.mjs` asserting none of the 4 real default branches set
+   `max_tokens`, so this doesn't silently regress. Full suite: 160 meeting-copilot tests passing.
+
+**Also removed the always-visible debug metrics UI** per explicit request — the per-run metric
+chip row (Model/Context/Project docs/Packs/Docs chars/Files/Freshness/TTFT/Latency, shown inline
+under each run's header) and the separate `MetricsDebugPanel` component (Model/Context/Cache/
+Project Docs/Pack Names/Docs Chars/Docs Files/Freshness Queries/Freshness Results/Freshness
+Status/Cached/Cache Write/TTFT/Latency grid, shown below all run cards) were cluttering the
+answer view. Removed both render sites, their now-dead helper functions (`formatMetricChip`,
+`runMetadata`) from `MeetingCopilotPanel.tsx`, and deleted `MetricsDebugPanel.tsx` outright (no
+longer referenced anywhere). Errors and warnings (`run.error`, `run.warnings`) are kept — those
+are operational signals, not debug internals. The underlying metrics collection
+(`LlmCallMetrics`, `emitEvent`, `MetricsStore`) is untouched — this only removes the in-app display,
+not the data.
+
+### "Pending question" logic didn't recognize when it had already been answered (2026-07-06)
+
+Live testing found the flip side of the earlier "answer the pending question, not the last line"
+fix: once the INTERVIEWER asked something and the user substantively answered it and moved on to
+elaborating on their own point, a later Quick Answer press would still re-answer the *original,
+already-resolved* question instead of helping with whatever the user was currently saying. Root
+cause was in the stable instructions' wording itself — it told the model that [ME] lines after a
+question are always "thinking out loud, restating it, or partway through an answer" (i.e. always
+still-pending), with no criterion for when a question should be considered done. So the model
+over-indexed on "there was a question earlier and nothing new has been asked since" and kept
+treating it as perpetually open.
+
+Fixed by adding an explicit PENDING vs RESOLVED distinction to
+`DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS` in `defaultActionConfig.ts`: a question stays
+pending only until the user's own lines give it a real, substantive answer; the moment that
+happens, it's resolved, even if no new INTERVIEWER line has followed, and re-answering a resolved
+question "because it's the last one asked" is explicitly called out as the mistake to avoid. This
+is a wording-only change (no code path change) — same shared instructions block used by
+`quick-answer`, `claim-check`, and both `tech-solver-parallel` branches. Full suite: 160
+meeting-copilot tests passing (no test changes needed — no test asserts the exact stable
+instructions text).
+
+### Claim Check replaced by a standalone Deep Answer action; deep prompts tightened for readability (2026-07-06)
+
+Two more live-testing findings, both user-directed:
+
+1. **Deep answers had gotten too long to read during a live interview.** Removing the fixed
+   `max_tokens` cap (previous entry) fixed truncation but exposed the flip side: `Opus` with tools
+   and web search enabled will happily write a very long, essay-like answer once nothing bounds it.
+   Since there's no token cap anymore, the *only* lever is the prompt. Added an explicit
+   readability instruction to both deep prompts (`tech-solver-parallel.deep` and the new
+   `deep-answer`, see next item): "lead with the single most important point, then at most 2-3
+   short supporting points — do not write an essay, and stop once you have made the key points
+   even if there is more you could say."
+
+2. **`Claim Check` (`Command+Shift+2`) replaced by a standalone `Deep Answer` action.** User's
+   call: rather than a fact-checking action, `Command+Shift+2` now gives a deep, thorough answer
+   on its own — same shape as `tech-solver-parallel`'s `deep` branch (`anthropic/claude-opus-4.8`,
+   `full_cached`, `tools_enabled`, `web_search_enabled: true`) but as an independent single-branch
+   action, not paired with a fast pane. So there are now two ways to get a deep answer: `Command+
+   Shift+2` (deep alone, immediately) or `Command+Shift+3` (fast pane first, deep alongside it).
+   `deep-answer`'s prompt is the same as `tech-solver-parallel.deep`'s minus the "you do not see
+   the fast answer" framing (not applicable — there's no fast sibling to disclaim). Updated
+   `FreshnessPolicy.ts`'s `actionAllowsFreshnessVerification()` to check `'deep-answer'` instead of
+   `'claim-check'` (unchanged otherwise — quick-answer/tech-solver.fast still caveat-only,
+   tech-solver.deep still verify-allowed). Removed `claim-check` from `defaultActionConfig.ts`,
+   `hotkeys.ts`'s `MEETING_COPILOT_HOTKEY_BINDINGS`, and `KeybindManager.ts`'s `DEFAULT_KEYBINDS`;
+   added `deep-answer` to each at the same `Command+Shift+2` slot. Updated every test that
+   referenced `claim-check` across `MeetingCopilotActionConfig`, `MeetingCopilotActionRunManager`
+   (including adding `tools_enabled = false` overrides to freshness tests that relied on
+   `claim-check` having no tools, since `deep-answer` defaults to `tools_enabled: true` and the
+   test manager doesn't wire a `toolLoop` stub), `MeetingCopilotFreshnessPolicy`,
+   `MeetingCopilotHotkeys`, and the renderer's `useMeetingCopilotReducer` test. One test
+   (`MeetingCopilotActionRunManager`'s "recent-mode branch without `project_docs_enabled`") had to
+   be rewritten rather than just renamed — it specifically needed a *recent-mode* action lacking
+   the flag, and `deep-answer` is `full_cached` (always gets docs), so it now targets
+   `tech-solver-parallel.fast` instead. Full suite: 160 meeting-copilot tests passing.
+
 ### Code-tools batch (#11–13) — how it was done
 
 A test workspace allowlist was configured in the same userData override file used for the cheap
@@ -733,28 +841,30 @@ first.
 > standalone actions; historical checklist entries elsewhere in this doc that mention them describe
 > findings from when they still existed and remain valid (the underlying code paths, e.g.
 > `tech-solver-parallel`'s `deep` branch, still exercise the same mechanics).
+> **Claim Check replaced by Deep Answer on `Command+Shift+2` (2026-07-06)** — see § "Claim Check
+> replaced by a standalone Deep Answer action" below.
 
 | Shortcut | Action |
 |----------|--------|
 | `Command+Shift+1` | Quick Answer |
-| `Command+Shift+2` | Claim Check |
+| `Command+Shift+2` | Deep Answer |
 | `Command+Shift+3` | Tech Solver: Fast + Deep |
 
 Registered via `KeybindManager` in `electron/services/KeybindManager.ts`.
 
 ## Prerequisites
 
-- `OPENROUTER_API_KEY` env var set before launch
-- `ripgrep` (`rg`) on PATH (for code tools in Tech Solver: Fast+Deep's `deep` branch)
+- `OPENROUTER_API_KEY` env var set before launch (or the OpenRouter key set in Settings → AI Providers)
+- `ripgrep` (`rg`) on PATH (for code tools in Deep Answer and Tech Solver: Fast+Deep's `deep` branch)
 - macOS with microphone/system audio permissions granted
 
 ## What Each Action Does
 
 | Action | Context | Model | Key Behavior |
 |--------|---------|-------|-------------|
-| Quick Answer | Recent transcript (~4 min) + pinned context | `google/gemini-3.5-flash` | Fast, low tokens, no tools |
-| Claim Check | Recent transcript (~5 min) + pinned context | `perplexity/sonar-pro-search` | Verifies technical claims against transcript; web-connected model |
-| Tech Solver: Fast+Deep | fast: recent (~5 min) + pinned context; deep: full cached + pinned context + project docs + web search | Fast: `google/gemini-3.5-flash` / Deep: `anthropic/claude-opus-4.8` | Fast answer renders first, no tools; deep branch refines it with up to 2 tool rounds (`rg` search, file read) plus OpenRouter's built-in web search plugin (always on) |
+| Quick Answer | Recent transcript (~4 min) + pinned context + project docs | `google/gemini-3.5-flash` | Fast, no tools; project docs included (Gemini implicit caching) |
+| Deep Answer | Full cached + pinned context + project docs + web search | `anthropic/claude-opus-4.8` | Standalone thorough answer with up to 2 tool rounds (`rg` search, file read) plus OpenRouter's built-in web search plugin (always on) |
+| Tech Solver: Fast+Deep | fast: recent (~5 min) + pinned context; deep: full cached + pinned context + project docs + web search | Fast: `google/gemini-3.5-flash` / Deep: `anthropic/claude-opus-4.8` | Fast answer renders first, no tools; deep branch refines it the same way Deep Answer does, but alongside a fast first pass |
 
 ## macOS Verification Checklist (from roadmap)
 

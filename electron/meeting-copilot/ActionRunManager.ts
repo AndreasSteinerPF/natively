@@ -110,7 +110,7 @@ type RunnerBranchConfig = {
     context_mode: ContextMode;
     cache_policy: OpenRouterChatCompletionRequest['cache_policy'];
     context_minutes?: number;
-    max_tokens: number;
+    max_tokens?: number;
     temperature: number;
     reasoning?: ReasoningConfig;
     tools_enabled?: boolean;

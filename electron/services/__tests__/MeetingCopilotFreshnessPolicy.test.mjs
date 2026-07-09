@@ -88,9 +88,9 @@ describe('MeetingCopilot FreshnessPolicy', () => {
     assert.equal(fast.allowed, false);
   });
 
-  test('claim-check and tech-solver-parallel deep branch can request verification when tools are available', () => {
-    const claimCheck = classify({
-      actionId: 'claim-check',
+  test('deep-answer and tech-solver-parallel deep branch can request verification when tools are available', () => {
+    const deepAnswer = classify({
+      actionId: 'deep-answer',
       branch: 'single',
       prompt: 'Check whether OpenRouter is currently degraded.',
       toolsAvailable: true,
@@ -102,9 +102,9 @@ describe('MeetingCopilot FreshnessPolicy', () => {
       toolsAvailable: true,
     });
 
-    assert.equal(claimCheck.shouldVerify, true);
-    assert.equal(claimCheck.shouldCaveat, false);
-    assert.equal(claimCheck.allowed, true);
+    assert.equal(deepAnswer.shouldVerify, true);
+    assert.equal(deepAnswer.shouldCaveat, false);
+    assert.equal(deepAnswer.allowed, true);
     assert.equal(deepSolution.shouldVerify, true);
     assert.equal(deepSolution.shouldCaveat, false);
     assert.equal(deepSolution.allowed, true);

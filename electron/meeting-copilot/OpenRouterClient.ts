@@ -29,7 +29,7 @@ type RetryDecision = {
 type ProviderPayload = {
     model: string;
     messages: OpenRouterMessage[];
-    max_tokens: number;
+    max_tokens?: number;
     temperature: number;
     stream: boolean;
     tools?: unknown[];
@@ -220,6 +220,7 @@ export class OpenRouterClient {
         let content = '';
         let usage: OpenRouterChatCompletionResult['usage'];
         let firstTokenAt: number | undefined;
+        let finishReason: string | undefined;
 
         try {
             while (true) {
@@ -244,7 +245,7 @@ export class OpenRouterClient {
                         const endedAt = this.now();
                         const result = this.buildResult(
                             {
-                                choices: [{ message: { content } }],
+                                choices: [{ message: { content }, finish_reason: finishReason }],
                                 usage,
                             },
                             request,
@@ -271,6 +272,11 @@ export class OpenRouterClient {
                         yield { type: 'token', token };
                     }
 
+                    const chunkFinishReason = extractChoice(parsed)?.finish_reason;
+                    if (typeof chunkFinishReason === 'string' && chunkFinishReason) {
+                        finishReason = chunkFinishReason;
+                    }
+
                     const parsedUsage = normalizeUsage((parsed as Record<string, unknown> | undefined)?.usage);
                     if (parsedUsage) {
                         usage = parsedUsage;
@@ -288,7 +294,7 @@ export class OpenRouterClient {
         const endedAt = this.now();
         const result = this.buildResult(
             {
-                choices: [{ message: { content } }],
+                choices: [{ message: { content }, finish_reason: finishReason }],
                 usage,
             },
             request,
@@ -451,6 +457,7 @@ export class OpenRouterClient {
         const toolCalls = Array.isArray(message?.tool_calls) ? message?.tool_calls : undefined;
         const usage = normalizeUsage(parsed.usage);
 
+        const finishReason = typeof choice?.finish_reason === 'string' ? choice.finish_reason : undefined;
         const metrics = this.buildMetrics(usage, request, startedAt, endedAt, firstTokenAt, retryUsed);
         const warnings = retryUsed ? ['cache_control_disabled_after_provider_rejection'] : [];
 
@@ -461,6 +468,7 @@ export class OpenRouterClient {
             metrics,
             tool_calls: toolCalls,
             usage,
+            finish_reason: finishReason,
         };
     }
 
