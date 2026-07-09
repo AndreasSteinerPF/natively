@@ -156,6 +156,35 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Draw/);
     assert.match(prompt, /Say/);
     assert.match(prompt, /Key Decisions/);
+    assert.match(prompt, /ADVANCE/);
+    assert.match(prompt, /REPAIR/);
+    assert.match(prompt, /pragmatic assumption/i);
+    assert.match(prompt, /Do not hallucinate screenshot details/);
+    assert.match(prompt, /8-14 bullets/);
+    assert.match(prompt, /live interview/i);
+    assert.match(prompt, /skimmable/i);
+  });
+
+  test('system-design deeper prompt is phase-aware and skimmable', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['go-deeper'].prompt;
+    assert.match(prompt, /phase-aware/i);
+    assert.match(prompt, /API/i);
+    assert.match(prompt, /data model/i);
+    assert.match(prompt, /architecture/i);
+    assert.match(prompt, /reliability/i);
+    assert.match(prompt, /VALIDATE/);
+    assert.match(prompt, /REPAIR/);
+    assert.match(prompt, /STRESS-TEST/);
+    assert.match(prompt, /Excalidraw edits/);
+    assert.match(prompt, /good enough for the interview/);
+    assert.match(prompt, /Verdict/);
+    assert.match(prompt, /Fixes/);
+    assert.match(prompt, /Stress Test/);
+    assert.match(prompt, /Say/);
+    assert.match(prompt, /3-5 ranked concrete changes/);
+    assert.match(prompt, /live interview/i);
+    assert.match(prompt, /skimmable/i);
   });
 
   test('default config includes exactly the three required action IDs', () => {
