@@ -4,6 +4,7 @@ import {
     OpenRouterCacheControl,
     OpenRouterContentBlock,
     OpenRouterMessage,
+    OpenRouterTextContentBlock,
     PromptSection,
     PromptSectionKey,
 } from './types';
@@ -17,6 +18,10 @@ const CACHEABLE_SECTION_KEYS = new Set<PromptSectionKey>([
 ]);
 
 function cloneBlock(block: OpenRouterContentBlock): OpenRouterContentBlock {
+    if (block.type === 'image_url') {
+        return { type: 'image_url', image_url: { ...block.image_url } };
+    }
+
     return block.cache_control ? { ...block, cache_control: { ...block.cache_control } } : { ...block };
 }
 
@@ -31,8 +36,8 @@ function cloneMessage(message: OpenRouterMessage): OpenRouterMessage {
     return { ...message };
 }
 
-function buildContentBlock(section: PromptSection, cacheControl?: OpenRouterCacheControl): OpenRouterContentBlock {
-    const block: OpenRouterContentBlock = {
+function buildContentBlock(section: PromptSection, cacheControl?: OpenRouterCacheControl): OpenRouterTextContentBlock {
+    const block: OpenRouterTextContentBlock = {
         type: 'text',
         text: section.content,
     };
@@ -107,7 +112,7 @@ export function buildOpenRouterMessages(input: {
 
     return {
         messages,
-        cacheable_block_count: systemBlocks.filter((block) => block.cache_control !== undefined).length,
+        cacheable_block_count: systemBlocks.filter((block) => block.type === 'text' && block.cache_control !== undefined).length,
         cache_control_applied: cacheControl !== undefined && systemBlocks.some((block) => block.cache_control !== undefined),
     };
 }
@@ -122,7 +127,9 @@ export function stripCacheControlFromMessages(messages: OpenRouterMessage[]): Op
             ...message,
             content: message.content.map((block) => {
                 const cloned = cloneBlock(block);
-                delete cloned.cache_control;
+                if (cloned.type === 'text') {
+                    delete cloned.cache_control;
+                }
                 return cloned;
             }),
         };

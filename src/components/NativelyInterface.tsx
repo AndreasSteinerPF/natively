@@ -1157,6 +1157,27 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     systemDesignActions.length === 2 &&
     systemDesignActions.some((action) => action.id === 'guide-me') &&
     systemDesignActions.some((action) => action.id === 'go-deeper');
+  const startSystemDesignAction = useCallback(
+    (actionId: string) => {
+      const pending = pendingCaptureRef.current;
+      let currentAttachments = attachedContext;
+      if (pending && !currentAttachments.some((s) => s.path === pending.path)) {
+        currentAttachments = [...currentAttachments, pending].slice(-5);
+      }
+
+      if (currentAttachments.length > 0) {
+        setAttachedContext([]);
+        pendingCaptureRef.current = null;
+      }
+
+      void window.electronAPI.meetingCopilot.invoke({
+        type: 'action:start',
+        actionId,
+        imagePaths: currentAttachments.length > 0 ? currentAttachments.map((s) => s.path) : undefined,
+      });
+    },
+    [attachedContext],
+  );
 
   // PERF: hoist ReactMarkdown `components` maps for every streaming intent
   // into a single useMemo so their identity is stable across renders. Each
@@ -6150,10 +6171,7 @@ Provide only the answer, nothing else.`;
                     <button
                       key={action.id}
                       onClick={() => {
-                        void window.electronAPI.meetingCopilot.invoke({
-                          type: 'action:start',
-                          actionId: action.id,
-                        });
+                        startSystemDesignAction(action.id);
                       }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
                       style={appearance.chipStyle}

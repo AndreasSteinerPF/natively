@@ -201,11 +201,20 @@ export type OpenRouterCacheControl = {
     ttl?: '1h';
 };
 
-export type OpenRouterContentBlock = {
+export type OpenRouterTextContentBlock = {
     type: 'text';
     text: string;
     cache_control?: OpenRouterCacheControl;
 };
+
+export type OpenRouterImageContentBlock = {
+    type: 'image_url';
+    image_url: {
+        url: string;
+    };
+};
+
+export type OpenRouterContentBlock = OpenRouterTextContentBlock | OpenRouterImageContentBlock;
 
 export type OpenRouterMessage = {
     role: 'system' | 'user' | 'assistant' | 'tool';
@@ -259,7 +268,7 @@ export type OpenRouterStreamEvent =
     | { type: 'done'; result: OpenRouterChatCompletionResult };
 
 export type MeetingCopilotInvoke =
-    | { type: 'action:start'; actionId: string }
+    | { type: 'action:start'; actionId: string; imagePaths?: string[] }
     | { type: 'action:cancel'; runId: string; branch?: 'fast' | 'deep' | 'all' }
     | { type: 'config:get' }
     | { type: 'context:pin:get' }

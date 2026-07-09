@@ -1,4 +1,7 @@
+import fs from 'node:fs/promises';
+
 import { redactForLog } from '../utils/redactForLog';
+import { imageMimeTypeFromPath } from '../utils/curlUtils';
 import { MetricsStore } from './MetricsStore';
 import { classifyFreshnessNeed, FRESHNESS_UNVERIFIED_CAVEAT } from './FreshnessPolicy';
 
@@ -13,6 +16,8 @@ import {
     MeetingCopilotConfig,
     MeetingCopilotEvent,
     OpenRouterChatCompletionRequest,
+    OpenRouterContentBlock,
+    OpenRouterImageContentBlock,
     OpenRouterMessage,
     OpenRouterStreamEvent,
     ReasoningConfig,
@@ -73,6 +78,7 @@ export interface ActionRunManagerOptions {
 
 export interface StartActionInput {
     actionId: string;
+    imagePaths?: string[];
 }
 
 export interface CancelActionInput {
@@ -188,6 +194,72 @@ function actionNeedsProjectContext(action: MeetingCopilotActionConfig): boolean 
     }
 
     return action.context_mode === 'full_cached' || Boolean(action.project_docs_enabled);
+}
+
+function normalizeImagePaths(imagePaths: string[] | undefined): string[] {
+    if (!Array.isArray(imagePaths)) return [];
+
+    return imagePaths
+        .filter((imagePath): imagePath is string => typeof imagePath === 'string' && imagePath.trim().length > 0)
+        .slice(0, 5);
+}
+
+async function buildImageContentBlocks(imagePaths: string[] | undefined): Promise<OpenRouterImageContentBlock[]> {
+    const normalizedPaths = normalizeImagePaths(imagePaths);
+    const blocks: OpenRouterImageContentBlock[] = [];
+
+    for (const imagePath of normalizedPaths) {
+        const data = await fs.readFile(imagePath);
+        blocks.push({
+            type: 'image_url',
+            image_url: {
+                url: `data:${imageMimeTypeFromPath(imagePath)};base64,${data.toString('base64')}`,
+            },
+        });
+    }
+
+    return blocks;
+}
+
+function appendImageBlocksToMessages(
+    messages: OpenRouterMessage[],
+    imageBlocks: OpenRouterImageContentBlock[]
+): OpenRouterMessage[] {
+    if (imageBlocks.length === 0) return messages;
+
+    let lastUserIndex = -1;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+        if (messages[index]?.role === 'user') {
+            lastUserIndex = index;
+            break;
+        }
+    }
+
+    const nextMessages = messages.map((message) => ({ ...message }));
+
+    if (lastUserIndex === -1) {
+        nextMessages.push({ role: 'user', content: imageBlocks });
+        return nextMessages;
+    }
+
+    const userMessage = nextMessages[lastUserIndex];
+    const existingContent = userMessage.content;
+    let content: OpenRouterContentBlock[];
+
+    if (Array.isArray(existingContent)) {
+        content = [...existingContent, ...imageBlocks];
+    } else if (typeof existingContent === 'string' && existingContent.trim().length > 0) {
+        content = [{ type: 'text', text: existingContent }, ...imageBlocks];
+    } else {
+        content = [...imageBlocks];
+    }
+
+    nextMessages[lastUserIndex] = {
+        ...userMessage,
+        content,
+    };
+
+    return nextMessages;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -524,6 +596,7 @@ export class ActionRunManager {
                         sessionBranch: 'fast',
                         pinnedContext,
                         projectContextBundle,
+                        imagePaths: input.imagePaths,
                     }),
                     this.executeBranch({
                         runId,
@@ -536,6 +609,7 @@ export class ActionRunManager {
                         sessionBranch: 'deep',
                         pinnedContext,
                         projectContextBundle,
+                        imagePaths: input.imagePaths,
                     }),
                 ]);
 
@@ -605,6 +679,7 @@ export class ActionRunManager {
                     sessionBranch: undefined,
                     pinnedContext,
                     projectContextBundle,
+                    imagePaths: input.imagePaths,
                 });
 
                 if (outcome.status === 'success') {
@@ -860,6 +935,7 @@ export class ActionRunManager {
         sessionBranch?: ActionPane;
         pinnedContext: string;
         projectContextBundle: ProjectContextBundle;
+        imagePaths?: string[];
     }): Promise<BranchOutcome> {
         const activeRun = this.activeRuns.get(input.runId);
         const activeBranch = activeRun?.branches[input.branch];
@@ -989,11 +1065,13 @@ export class ActionRunManager {
         const startedAt = input.startedAt;
         let firstTokenAt: number | undefined;
         let finalText = '';
+        const imageBlocks = input.imagePaths?.length ? await buildImageContentBlocks(input.imagePaths) : [];
+        const messages = appendImageBlocksToMessages(serialized.messages, imageBlocks);
 
         try {
             const stream = this.openRouterClient.streamChatCompletion({
                 model: input.branchConfig.model,
-                messages: serialized.messages,
+                messages,
                 max_tokens: input.branchConfig.max_tokens,
                 temperature: input.branchConfig.temperature,
                 stream: true,

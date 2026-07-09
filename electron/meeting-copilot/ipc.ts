@@ -17,7 +17,7 @@ type WebContentsLike = {
 };
 
 type ActionRunManagerLike = {
-    start: (payload: { actionId: string }) => Promise<unknown>;
+    start: (payload: { actionId: string; imagePaths?: string[] }) => Promise<unknown>;
     cancel: (payload: { runId: string; branch?: 'fast' | 'deep' | 'all' }) => Promise<unknown>;
 };
 
@@ -48,6 +48,31 @@ function boundString(value: unknown): string {
 
 function sanitizeString(value: unknown): string {
     return boundString(redactForLog([String(value ?? '')]).trim());
+}
+
+function sanitizeImagePaths(value: unknown): string[] | undefined {
+    if (value === undefined) return undefined;
+    if (!Array.isArray(value)) {
+        throw new Error('Meeting Copilot image path payload must be an array');
+    }
+
+    const imagePaths = value.slice(0, 5).map((imagePath) => sanitizeString(imagePath));
+    if (imagePaths.some((imagePath) => imagePath.length === 0)) {
+        throw new Error('Meeting Copilot image paths must be non-empty strings');
+    }
+
+    const { app } = require('electron');
+    const { validateImagePath } = require('../utils/curlUtils');
+    const userDataDir = app.getPath('userData');
+
+    for (const imagePath of imagePaths) {
+        const validation = validateImagePath(imagePath, userDataDir);
+        if (!validation.isValid) {
+            throw new Error(`Invalid Meeting Copilot image path: ${validation.reason ?? 'not allowed'}`);
+        }
+    }
+
+    return imagePaths.length > 0 ? imagePaths : undefined;
 }
 
 function boundWarnings(value: unknown): string[] | undefined {
@@ -189,8 +214,10 @@ export function registerMeetingCopilotIpc(options: RegisterMeetingCopilotIpcOpti
         }
 
         if (payload.type === 'action:start') {
+            const imagePaths = sanitizeImagePaths(payload.imagePaths);
             return options.actionRunManager.start({
                 actionId: sanitizeInvokeId(payload.actionId),
+                ...(imagePaths ? { imagePaths } : {}),
             });
         }
 

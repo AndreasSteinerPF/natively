@@ -1,5 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -263,6 +265,59 @@ describe('meeting-copilot action runner', () => {
     );
   });
 
+  test('action start attaches screenshot paths as image_url content blocks on the user message', async () => {
+    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const imagePath = path.join(os.tmpdir(), `meeting-copilot-board-${Date.now()}.png`);
+    fs.writeFileSync(imagePath, pngBytes);
+
+    const openRouterCalls = [];
+    const manager = new ActionRunManager({
+      config: cloneConfig(),
+      transcriptSnapshotProvider: () => createSnapshot(),
+      buildContext: buildMeetingCopilotContext,
+      buildMessages: buildOpenRouterMessages,
+      openRouterClient: {
+        streamChatCompletion: async function* (request) {
+          openRouterCalls.push(request);
+          yield {
+            type: 'done',
+            result: {
+              content: '',
+              raw: {},
+              warnings: [],
+              usage: {},
+              metrics: {},
+            },
+          };
+        },
+      },
+      emitEvent: () => {},
+      createRunId: () => 'run-with-image',
+      now: createClock([100, 110]),
+      sessionId: 'meeting-123:quick-answer',
+    });
+
+    try {
+      await manager.start({ actionId: 'quick-answer', imagePaths: [imagePath] });
+    } finally {
+      fs.rmSync(imagePath, { force: true });
+    }
+
+    const userMessage = openRouterCalls[0].messages.find((message) => message.role === 'user');
+    assert.equal(Array.isArray(userMessage.content), true);
+    assert.deepEqual(
+      userMessage.content.filter((block) => block.type === 'image_url'),
+      [
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:image/png;base64,${pngBytes.toString('base64')}`,
+          },
+        },
+      ],
+    );
+  });
+
   test('tech-solver and deep-solution run through full_cached context with Anthropic cache-control and derived session ids', async () => {
     const snapshot = createSnapshot();
     const emitted = [];
@@ -344,10 +399,15 @@ describe('meeting-copilot action runner', () => {
       assert.equal(request.stream, true);
       assert.equal(Array.isArray(request.messages[0].content), true);
       // Empty cacheable sections (custom_context, pinned_context) are omitted so
-      // Anthropic never receives an empty text content block (which 400s). Only
-      // the non-empty cacheable sections remain: stable_instructions + transcript.
-      assert.equal(request.messages[0].content.length, 2);
-      assert.equal(request.messages[0].content.every((block) => block.cache_control?.ttl === '1h'), true);
+      // Anthropic never receives an empty text content block (which 400s). The
+      // second run also includes uncached action history from the first run.
+      assert.equal(request.messages[0].content.length, index === 0 ? 2 : 3);
+      assert.equal(
+        request.messages[0].content
+          .filter((block) => block.text.includes('stable_instructions') || block.text.includes('meeting_transcript_so_far'))
+          .every((block) => block.cache_control?.ttl === '1h'),
+        true,
+      );
       assert.equal(request.messages[0].content.every((block) => block.text.trim().length > 0), true);
       assert.equal(Array.isArray(request.messages[1].content), true);
       assert.equal(request.messages[1].content.length, 2);
