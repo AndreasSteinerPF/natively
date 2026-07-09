@@ -79,6 +79,16 @@ const EXPECTED_DEFAULTS = {
       },
     },
   },
+  systemDesignActions: {
+    'guide-me': {
+      model: 'anthropic/claude-fable-5',
+      reasoning: 'medium',
+    },
+    'go-deeper': {
+      model: 'anthropic/claude-fable-5',
+      reasoning: 'high',
+    },
+  },
   code_context: {
     max_total_chars: 12000,
   },
@@ -126,6 +136,16 @@ describe('meeting-copilot action config defaults', () => {
     assert.equal(config.project_context.enabled, false);
     assert.equal(config.actions['guide-me'].project_docs_enabled, undefined);
     assert.equal(config.actions['go-deeper'].web_search_enabled, undefined);
+  });
+
+  test('system-design preset uses Claude Fable 5 for both actions', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    for (const actionId of SYSTEM_DESIGN_ACTION_IDS) {
+      const action = config.actions[actionId];
+      const expected = EXPECTED_DEFAULTS.systemDesignActions[actionId];
+      assert.equal(action.model, expected.model, `${actionId} model`);
+      assert.equal(action.reasoning?.effort, expected.reasoning, `${actionId} reasoning`);
+    }
   });
 
   test('system-design guide prompt encodes the full-step output shape', () => {

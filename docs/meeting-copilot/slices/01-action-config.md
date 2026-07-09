@@ -190,10 +190,10 @@ Example with a direct override:
   "preset": "system-design-interview",
   "actions": {
     "guide-me": {
-      "model": "anthropic/claude-opus-4.8"
+      "model": "anthropic/claude-fable-5"
     },
     "go-deeper": {
-      "model": "anthropic/claude-opus-4.8"
+      "model": "anthropic/claude-fable-5"
     }
   }
 }
