@@ -1,4 +1,4 @@
-import type { MeetingCopilotEvent, MeetingCopilotInvoke } from '../../electron/meeting-copilot/types'
+import type { MeetingCopilotEvent, MeetingCopilotInvoke, MeetingCopilotRendererConfig } from '../../electron/meeting-copilot/types'
 
 // Shared Meeting Copilot invoke typing includes the code-tool entries; no
 // separate renderer API surface is defined here.
@@ -40,6 +40,7 @@ export interface DynamicActionPayload {
 export interface ElectronAPI {
   meetingCopilot: {
     invoke: (payload: MeetingCopilotInvoke) => Promise<unknown>
+    getConfig: () => Promise<MeetingCopilotRendererConfig>
     onEvent: (callback: (event: MeetingCopilotEvent) => void) => () => void
   }
   updateContentDimensions: (dimensions: {

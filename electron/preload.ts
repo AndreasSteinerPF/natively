@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   MeetingCopilotEvent,
   MeetingCopilotInvoke,
+  MeetingCopilotRendererConfig,
 } from './meeting-copilot/types';
 import type { SkillUploadPayload } from './services/skills/SkillValidator';
 
@@ -27,6 +28,7 @@ interface DomCaptureMeta {
 interface ElectronAPI {
   meetingCopilot: {
     invoke: (payload: MeetingCopilotInvoke) => Promise<unknown>;
+    getConfig: () => Promise<MeetingCopilotRendererConfig>;
     onEvent: (callback: (event: MeetingCopilotEvent) => void) => () => void;
   };
   updateContentDimensions: (dimensions: { width: number; height: number }) => Promise<void>;
@@ -1020,6 +1022,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   meetingCopilot: {
     invoke: (payload: MeetingCopilotInvoke) =>
       ipcRenderer.invoke(MEETING_COPILOT_INVOKE_CHANNEL, payload),
+    getConfig: () =>
+      ipcRenderer.invoke(MEETING_COPILOT_INVOKE_CHANNEL, { type: 'config:get' }),
     onEvent: (callback: (event: MeetingCopilotEvent) => void) => {
       const subscription = (_: any, event: MeetingCopilotEvent) => callback(event);
       ipcRenderer.on(MEETING_COPILOT_EVENT_CHANNEL, subscription);

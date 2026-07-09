@@ -1,6 +1,6 @@
 import { redactForLog } from '../utils/redactForLog';
 
-import { MeetingCopilotEvent, MeetingCopilotInvoke } from './types';
+import { MeetingCopilotEvent, MeetingCopilotInvoke, MeetingCopilotRendererConfig } from './types';
 
 export const MEETING_COPILOT_INVOKE_CHANNEL = 'meeting-copilot:invoke';
 export const MEETING_COPILOT_EVENT_CHANNEL = 'meeting-copilot:event';
@@ -39,6 +39,7 @@ export interface RegisterMeetingCopilotIpcOptions {
     pinnedContextStore: PinnedContextStoreLike;
     webContents: WebContentsLike;
     codeTools?: CodeToolsLike;
+    getConfig?: () => MeetingCopilotRendererConfig;
 }
 
 function boundString(value: unknown): string {
@@ -198,6 +199,10 @@ export function registerMeetingCopilotIpc(options: RegisterMeetingCopilotIpcOpti
                 runId: sanitizeInvokeId(payload.runId),
                 branch: sanitizeBranch(payload.branch),
             });
+        }
+
+        if (payload.type === 'config:get') {
+            return options.getConfig ? options.getConfig() : { actions: [] };
         }
 
         if (payload.type === 'context:pin:get') {

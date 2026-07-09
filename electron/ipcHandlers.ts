@@ -294,6 +294,13 @@ export function initializeIpcHandlers(appState: AppState): void {
   const meetingCopilotIpc = registerMeetingCopilotIpc({
     ipcMain,
     actionRunManager: meetingCopilotActionRunManager,
+    getConfig: () => ({
+      actions: Object.entries(meetingCopilotConfig.actions).map(([id, action]) => ({
+        id,
+        label: action.label,
+        hotkey: action.trigger.hotkey,
+      })),
+    }),
     codeTools,
     pinnedContextStore: {
       async load() {

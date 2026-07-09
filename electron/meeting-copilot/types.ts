@@ -261,12 +261,21 @@ export type OpenRouterStreamEvent =
 export type MeetingCopilotInvoke =
     | { type: 'action:start'; actionId: string }
     | { type: 'action:cancel'; runId: string; branch?: 'fast' | 'deep' | 'all' }
+    | { type: 'config:get' }
     | { type: 'context:pin:get' }
     | { type: 'context:pin:update'; value: string }
     | { type: 'context:pin:reset' }
     | { type: 'code:list_workspaces' }
     | { type: 'code:search'; query: string; workspace?: string }
     | { type: 'code:read'; path: string; workspace?: string; startLine?: number; endLine?: number };
+
+export interface MeetingCopilotRendererConfig {
+    actions: Array<{
+        id: string;
+        label: string;
+        hotkey: string;
+    }>;
+}
 
 export type MeetingCopilotEvent =
     | { type: 'action:started'; runId: string; actionId: string; label: string }

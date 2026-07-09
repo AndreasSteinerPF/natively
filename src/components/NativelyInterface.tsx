@@ -15,6 +15,7 @@ import {
   Pencil,
   PointerOff,
   RefreshCw,
+  Search,
   SlidersHorizontal,
   X,
   Zap,
@@ -189,6 +190,7 @@ import { NegotiationCoachingCard } from '../premium';
 import type { DynamicActionPayload } from '../types/electron';
 import { getCodexCliModelDisplayName } from '../utils/modelUtils';
 import { getModifierSymbol, isMac } from '../utils/platformUtils';
+import type { MeetingCopilotRendererConfig } from '../../electron/meeting-copilot/types';
 import { DynamicActionBar } from './dynamic-actions/DynamicActionBar';
 import { PinnedContextEditor } from './meeting-copilot/PinnedContextEditor';
 import { MeetingCopilotPanel } from './meeting-copilot/MeetingCopilotPanel';
@@ -579,6 +581,11 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   overlayOpacity = OVERLAY_OPACITY_DEFAULT,
   interfaceTheme = 'default',
 }) => {
+  const resolveSystemDesignScrollContainer = useCallback((): HTMLElement | null => {
+    const candidate = document.querySelector<HTMLElement>('[data-system-design-scroll="true"]');
+    return candidate && candidate.isConnected ? candidate : null;
+  }, []);
+
   const isLightTheme = useResolvedTheme() === 'light';
   const isGlassTheme = interfaceTheme === 'liquid-glass';
   const isModernTheme = interfaceTheme === 'modern';
@@ -589,6 +596,7 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const [skillPickerIndex, setSkillPickerIndex] = useState(0);
   const { shortcuts, isShortcutPressed } = useShortcuts();
   const meetingCopilot = useMeetingCopilot();
+  const [meetingCopilotConfig, setMeetingCopilotConfig] = useState<MeetingCopilotRendererConfig | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   // Keep chat history visible once an answer lands until explicit clear / session reset.
   const [answerPanelPinned, setAnswerPanelPinned] = useState(false);
@@ -1110,6 +1118,20 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void window.electronAPI?.meetingCopilot?.getConfig?.()
+      .then((config) => {
+        if (!cancelled) {
+          setMeetingCopilotConfig(config);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const useDarkCodeTheme = !isLightTheme || isGlassTheme || isModernTheme;
   const codeTheme = useDarkCodeTheme ? vscDarkPlus : oneLight;
   const codeLineNumberColor = useDarkCodeTheme ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.35)';
@@ -1127,6 +1149,14 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const quickActionClass = 'overlay-chip-surface overlay-text-interactive';
   const inputClass = `${isLightTheme ? 'focus:ring-black/10' : 'focus:ring-white/10'} overlay-input-surface overlay-input-text`;
   const controlSurfaceClass = 'overlay-control-surface overlay-text-interactive';
+  const systemDesignActions = useMemo(
+    () => meetingCopilotConfig?.actions.filter((action) => action.id === 'guide-me' || action.id === 'go-deeper') ?? [],
+    [meetingCopilotConfig],
+  );
+  const isSystemDesignMeetingCopilot =
+    systemDesignActions.length === 2 &&
+    systemDesignActions.some((action) => action.id === 'guide-me') &&
+    systemDesignActions.some((action) => action.id === 'go-deeper');
 
   // PERF: hoist ReactMarkdown `components` maps for every streaming intent
   // into a single useMemo so their identity is stable across renders. Each
@@ -4722,7 +4752,7 @@ Provide only the answer, nothing else.`;
     };
 
     const tick = (ts: number) => {
-      const container = scrollContainerRef.current;
+      const container = resolveSystemDesignScrollContainer() ?? scrollContainerRef.current;
       if (!container) {
         rafId = null;
         lastTs = 0;
@@ -5121,7 +5151,7 @@ Provide only the answer, nothing else.`;
     };
 
     const kick = (axis: 'vert' | 'horiz', direction: -1 | 1) => {
-      const container = scrollContainerRef.current;
+      const container = resolveSystemDesignScrollContainer() ?? scrollContainerRef.current;
       if (!container) return;
 
       let target: HTMLElement | null;
@@ -5153,7 +5183,7 @@ Provide only the answer, nothing else.`;
       if (state.raf !== null) cancelAnimationFrame(state.raf);
       inertialScrollRef.current = null;
     };
-  }, []);
+  }, [resolveSystemDesignScrollContainer]);
 
   // Stealth Global Shortcuts Handler
   // Listens for shortcuts triggered when the app is in the background
@@ -5995,11 +6025,12 @@ Provide only the answer, nothing else.`;
                 />
               ) : null}
 
-              <PinnedContextEditor />
+              {!isSystemDesignMeetingCopilot ? <PinnedContextEditor /> : null}
 
               <MeetingCopilotPanel
                 state={meetingCopilot.state}
                 cancel={meetingCopilot.cancel}
+                systemDesignMode={isSystemDesignMeetingCopilot}
               />
 
               {/* Chat History - Only show if there are messages OR active states */}
@@ -6114,62 +6145,90 @@ Provide only the answer, nothing else.`;
               <div
                 className={`flex flex-nowrap justify-center items-center gap-1.5 px-4 pb-3 overflow-x-hidden ${rollingTranscript && showTranscript ? 'pt-1' : 'pt-3'}`}
               >
-                <button
-                  onClick={handleWhatToSay}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
-                  style={appearance.chipStyle}
-                >
-                  <Pencil className="w-3 h-3 opacity-70" /> What to answer?
-                </button>
-                <button
-                  onClick={handleClarify}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
-                  style={appearance.chipStyle}
-                >
-                  <MessageSquare className="w-3 h-3 opacity-70" /> Clarify
-                </button>
-                <button
-                  onClick={actionButtonMode === 'brainstorm' ? handleBrainstorm : handleRecap}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
-                  style={appearance.chipStyle}
-                >
-                  {actionButtonMode === 'brainstorm' ? (
-                    <>
-                      <Lightbulb className="w-3 h-3 opacity-70" /> Brainstorm
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-3 h-3 opacity-70" /> Recap
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleFollowUpQuestions}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
-                  style={appearance.chipStyle}
-                >
-                  <HelpCircle className="w-3 h-3 opacity-70" /> Follow Up Question
-                </button>
-                <button
-                  onClick={handleAnswerNow}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all active:scale-95 duration-200 interaction-base interaction-press min-w-[74px] whitespace-nowrap shrink-0 ${
-                    isManualRecording
-                      ? 'bg-red-500/10 text-red-400 ring-1 ring-red-500/20'
-                      : 'overlay-chip-surface overlay-text-interactive'
-                  }`}
-                  style={isManualRecording ? undefined : appearance.chipStyle}
-                >
-                  {isManualRecording ? (
-                    <>
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                      Stop
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-3 h-3 opacity-70" /> Answer
-                    </>
-                  )}
-                </button>
+                {isSystemDesignMeetingCopilot ? (
+                  systemDesignActions.map((action) => (
+                    <button
+                      key={action.id}
+                      onClick={() => {
+                        void window.electronAPI.meetingCopilot.invoke({
+                          type: 'action:start',
+                          actionId: action.id,
+                        });
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
+                      style={appearance.chipStyle}
+                    >
+                      {action.id === 'guide-me' ? (
+                        <List className="w-3 h-3 opacity-70" />
+                      ) : (
+                        <Search className="w-3 h-3 opacity-70" />
+                      )}
+                      {action.label}
+                      <span className="overlay-text-muted text-[10px]">
+                        {action.hotkey.replaceAll('Command', isMac ? 'Cmd' : 'Ctrl')}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <>
+                    <button
+                      onClick={handleWhatToSay}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
+                      style={appearance.chipStyle}
+                    >
+                      <Pencil className="w-3 h-3 opacity-70" /> What to answer?
+                    </button>
+                    <button
+                      onClick={handleClarify}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
+                      style={appearance.chipStyle}
+                    >
+                      <MessageSquare className="w-3 h-3 opacity-70" /> Clarify
+                    </button>
+                    <button
+                      onClick={actionButtonMode === 'brainstorm' ? handleBrainstorm : handleRecap}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
+                      style={appearance.chipStyle}
+                    >
+                      {actionButtonMode === 'brainstorm' ? (
+                        <>
+                          <Lightbulb className="w-3 h-3 opacity-70" /> Brainstorm
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3 h-3 opacity-70" /> Recap
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleFollowUpQuestions}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
+                      style={appearance.chipStyle}
+                    >
+                      <HelpCircle className="w-3 h-3 opacity-70" /> Follow Up Question
+                    </button>
+                    <button
+                      onClick={handleAnswerNow}
+                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all active:scale-95 duration-200 interaction-base interaction-press min-w-[74px] whitespace-nowrap shrink-0 ${
+                        isManualRecording
+                          ? 'bg-red-500/10 text-red-400 ring-1 ring-red-500/20'
+                          : 'overlay-chip-surface overlay-text-interactive'
+                      }`}
+                      style={isManualRecording ? undefined : appearance.chipStyle}
+                    >
+                      {isManualRecording ? (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                          Stop
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3 h-3 opacity-70" /> Answer
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Input Area */}
@@ -6357,7 +6416,11 @@ Provide only the answer, nothing else.`;
                   {/* Custom Rich Placeholder */}
                   {!inputValue && (
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none text-[13px] overlay-text-muted">
-                      <span>Ask anything on screen or conversation, or</span>
+                      <span>
+                        {isSystemDesignMeetingCopilot
+                          ? 'Ask about the design or attach a screenshot, or'
+                          : 'Ask anything on screen or conversation, or'}
+                      </span>
                       <div className="flex items-center gap-1 opacity-80">
                         {(
                           shortcuts.selectiveScreenshot || [getModifierSymbol('cmd'), 'Shift', 'H']
@@ -6387,48 +6450,51 @@ Provide only the answer, nothing else.`;
                 {/* Bottom Row */}
                 <div className="flex items-center justify-between mt-3 px-0.5">
                   <div className="flex items-center gap-1.5">
-                    <button
-                      data-model-selector-toggle="true"
-                      onClick={(e) => {
-                        // Calculate position for detached window
-                        if (!contentRef.current) return;
-                        const contentRect = contentRef.current.getBoundingClientRect();
-                        const buttonRect = e.currentTarget.getBoundingClientRect();
-                        const GAP = 8;
+                    {!isSystemDesignMeetingCopilot ? (
+                      <>
+                        <button
+                          data-model-selector-toggle="true"
+                          onClick={(e) => {
+                            if (!contentRef.current) return;
+                            const contentRect = contentRef.current.getBoundingClientRect();
+                            const buttonRect = e.currentTarget.getBoundingClientRect();
+                            const GAP = 8;
 
-                        const x = window.screenX + buttonRect.left;
-                        const y = window.screenY + contentRect.bottom + GAP;
+                            const x = window.screenX + buttonRect.left;
+                            const y = window.screenY + contentRect.bottom + GAP;
 
-                        window.electronAPI.toggleModelSelector({ x, y, activate: false });
-                      }}
-                      className={`
-                                                flex items-center gap-2 px-3 py-1.5
-                                                border rounded-lg transition-colors
-                                                text-xs font-medium w-[140px]
-                                                interaction-base interaction-press
-                                                ${controlSurfaceClass}
-                                            `}
-                      style={appearance.controlStyle}
-                    >
-                      <span className="truncate min-w-0 flex-1">
-                        {(() => {
-                          const m = currentModel;
-                          const codexCliName = getCodexCliModelDisplayName(m);
-                          if (codexCliName) return codexCliName;
-                          if (m.startsWith('ollama-')) return m.replace('ollama-', '');
-                          if (m === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';
-                          if (m === 'gemini-3.1-flash-lite') return 'Gemini 3.1 Flash Lite';
-                          if (m === 'gemini-3.1-pro-preview') return 'Gemini 3.1 Pro';
-                          if (m === 'llama-3.3-70b-versatile') return 'Groq Llama 3.3';
-                          if (m === 'gpt-5.4') return 'GPT 5.4';
-                          if (m === 'claude-sonnet-4-6') return 'Sonnet 4.6';
-                          return m;
-                        })()}
-                      </span>
-                      <ChevronDown size={14} className="shrink-0 transition-transform" />
-                    </button>
+                            window.electronAPI.toggleModelSelector({ x, y, activate: false });
+                          }}
+                          className={`
+                                                    flex items-center gap-2 px-3 py-1.5
+                                                    border rounded-lg transition-colors
+                                                    text-xs font-medium w-[140px]
+                                                    interaction-base interaction-press
+                                                    ${controlSurfaceClass}
+                                                `}
+                          style={appearance.controlStyle}
+                        >
+                          <span className="truncate min-w-0 flex-1">
+                            {(() => {
+                              const m = currentModel;
+                              const codexCliName = getCodexCliModelDisplayName(m);
+                              if (codexCliName) return codexCliName;
+                              if (m.startsWith('ollama-')) return m.replace('ollama-', '');
+                              if (m === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';
+                              if (m === 'gemini-3.1-flash-lite') return 'Gemini 3.1 Flash Lite';
+                              if (m === 'gemini-3.1-pro-preview') return 'Gemini 3.1 Pro';
+                              if (m === 'llama-3.3-70b-versatile') return 'Groq Llama 3.3';
+                              if (m === 'gpt-5.4') return 'GPT 5.4';
+                              if (m === 'claude-sonnet-4-6') return 'Sonnet 4.6';
+                              return m;
+                            })()}
+                          </span>
+                          <ChevronDown size={14} className="shrink-0 transition-transform" />
+                        </button>
 
-                    <div className="w-px h-3 mx-1" style={appearance.dividerStyle} />
+                        <div className="w-px h-3 mx-1" style={appearance.dividerStyle} />
+                      </>
+                    ) : null}
 
                     <div className="relative">
                       <button

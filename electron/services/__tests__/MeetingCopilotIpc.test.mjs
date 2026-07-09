@@ -315,6 +315,51 @@ describe('meeting-copilot ipc', () => {
     });
   });
 
+  test('IPC invoke exposes renderer config with action labels and hotkeys', async () => {
+    const handlers = new Map();
+
+    registerMeetingCopilotIpc({
+      ipcMain: {
+        removeHandler(channel) {
+          handlers.delete(channel);
+        },
+        handle(channel, listener) {
+          handlers.set(channel, listener);
+        },
+      },
+      actionRunManager: {
+        start() {
+          return Promise.resolve({ ok: true });
+        },
+        cancel() {
+          return Promise.resolve({ ok: true });
+        },
+      },
+      getConfig() {
+        return {
+          actions: [
+            { id: 'guide-me', label: 'Guide Me', hotkey: 'Command+Shift+1' },
+            { id: 'go-deeper', label: 'Go Deeper', hotkey: 'Command+Shift+2' },
+          ],
+        };
+      },
+      pinnedContextStore: createPinnedContextStore(),
+      webContents: {
+        send() {},
+      },
+    });
+
+    const invoke = handlers.get(MEETING_COPILOT_INVOKE_CHANNEL);
+    const result = await invoke({}, { type: 'config:get' });
+
+    assert.deepEqual(result, {
+      actions: [
+        { id: 'guide-me', label: 'Guide Me', hotkey: 'Command+Shift+1' },
+        { id: 'go-deeper', label: 'Go Deeper', hotkey: 'Command+Shift+2' },
+      ],
+    });
+  });
+
   test('IPC invoke dispatches code:list_workspaces, code:search, and code:read when code tools are available', async () => {
     const handlers = new Map();
     const codeCalls = [];
