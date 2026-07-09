@@ -170,6 +170,41 @@ export function validateMeetingCopilotConfig(
 ): MeetingCopilotConfig;
 ```
 
+Manual preset selection:
+
+- Set `"preset": "system-design-interview"` in `meeting-copilot.config.json` to load the two-action interview copilot defaults.
+- You can still override any action fields directly in the same file after selecting the preset.
+
+Example config:
+
+```json
+{
+  "preset": "system-design-interview"
+}
+```
+
+Example with a direct override:
+
+```json
+{
+  "preset": "system-design-interview",
+  "actions": {
+    "guide-me": {
+      "model": "anthropic/claude-opus-4.8"
+    },
+    "go-deeper": {
+      "model": "anthropic/claude-opus-4.8"
+    }
+  }
+}
+```
+
+Operational note for local agents:
+
+- If you want an agent or local workflow to use the system-design interview copilot, instruct it to write `meeting-copilot.config.json` with `"preset": "system-design-interview"` before launching or reloading the app.
+- The preset loads two actions only: `Guide Me` and `Go Deeper`.
+- It disables repo/code-context and project-doc grounding by default and keeps shared action history across runs.
+
 Implementation detail:
 
 - `validateMeetingCopilotConfig` can be a small hand-written validator in v1.

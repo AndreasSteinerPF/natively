@@ -254,4 +254,46 @@ describe('MeetingCopilot ContextBuilder', () => {
     assert.match(result.sections[6].content, /current external facts/);
     assert.equal(result.sections[6].cache?.cacheable, false);
   });
+
+  test('recent context includes action_history before current_action', () => {
+    const snapshot = seedBuffer().snapshot();
+
+    const result = buildMeetingCopilotContext({
+      mode: 'recent',
+      snapshot,
+      contextMinutes: 2,
+      now: '2026-07-03T10:10:00.000Z',
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: '',
+      actionHistory: 'Guide Me: Use Postgres as the source of truth.',
+      currentAction: 'Continue the next design phase.',
+    });
+
+    assert.deepEqual(
+      result.sections.map((section) => section.key),
+      ['stable_instructions', 'custom_context', 'pinned_context', 'recent_transcript', 'action_history', 'current_action']
+    );
+    assert.equal(result.sections[4].content, 'Guide Me: Use Postgres as the source of truth.');
+  });
+
+  test('full_cached context keeps action_history near the current action', () => {
+    const snapshot = seedBuffer().snapshot();
+
+    const result = buildMeetingCopilotContext({
+      mode: 'full_cached',
+      snapshot,
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: '',
+      codeContext: '',
+      actionHistory: 'Go Deeper: add a queue for async writes.',
+      dynamicEvidenceContext: 'Board screenshot summary: API, queue, worker, Postgres.',
+      currentAction: 'Refine the architecture phase.',
+    });
+
+    assert.equal(result.sections.at(-2)?.key, 'action_history');
+    assert.equal(result.sections.at(-2)?.cache?.cacheable, false);
+    assert.equal(result.sections.at(-1)?.key, 'current_action');
+  });
 });

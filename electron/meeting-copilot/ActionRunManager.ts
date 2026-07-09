@@ -96,6 +96,7 @@ type BranchOutcome =
           status: 'success';
           metrics: LlmCallMetrics;
           warnings?: string[];
+          finalText: string;
       }
     | {
           status: 'error';
@@ -440,6 +441,7 @@ export class ActionRunManager {
     private readonly hasFreshnessTools: () => boolean;
     private readonly freshnessTools?: NonNullable<ActionRunManagerOptions['freshnessTools']>;
     private readonly activeRuns = new Map<string, ActiveRun>();
+    private readonly sharedActionHistoryByMeeting = new Map<string, string[]>();
 
     constructor(options: ActionRunManagerOptions) {
         this.config = options.config;
@@ -550,6 +552,10 @@ export class ActionRunManager {
                     );
 
                     if (successes.length > 0) {
+                        this.appendSharedActionHistory(
+                            snapshot.meeting_id,
+                            this.formatParallelActionHistory(action.label, successes)
+                        );
                         const aggregateMetrics = this.buildAggregateMetrics({
                             meetingId: snapshot.meeting_id,
                             actionId,
@@ -602,6 +608,10 @@ export class ActionRunManager {
                 });
 
                 if (outcome.status === 'success') {
+                    this.appendSharedActionHistory(
+                        snapshot.meeting_id,
+                        this.formatSingleActionHistory(action.label, outcome.finalText)
+                    );
                     this.emitEvent({
                         type: 'action:completed',
                         runId,
@@ -715,6 +725,39 @@ export class ActionRunManager {
                 warnings: [warning],
             };
         }
+    }
+
+    private appendSharedActionHistory(meetingId: string, entry: string): void {
+        const trimmed = entry.trim();
+        if (!trimmed) {
+            return;
+        }
+        const existing = this.sharedActionHistoryByMeeting.get(meetingId) ?? [];
+        const next = [...existing, trimmed].slice(-8);
+        this.sharedActionHistoryByMeeting.set(meetingId, next);
+    }
+
+    private getSharedActionHistory(meetingId: string): string {
+        return (this.sharedActionHistoryByMeeting.get(meetingId) ?? []).join('\n\n');
+    }
+
+    private formatSingleActionHistory(label: string, finalText: string): string {
+        return `${label}\n${finalText.trim()}`.trim();
+    }
+
+    private formatParallelActionHistory(
+        label: string,
+        outcomes: Array<Extract<BranchOutcome, { status: 'success' }>>
+    ): string {
+        const parts = outcomes
+            .map((outcome) => {
+                const branch = outcome.metrics.branch === 'fast' || outcome.metrics.branch === 'deep'
+                    ? outcome.metrics.branch
+                    : 'single';
+                return `[${branch}] ${outcome.finalText.trim()}`.trim();
+            })
+            .filter((value) => value.length > 0);
+        return [label, ...parts].join('\n');
     }
 
     private async buildFreshnessEvidence(input: {
@@ -861,6 +904,7 @@ export class ActionRunManager {
             customContext: this.getCustomContext(),
             projectDocsContext,
             pinnedContext: input.pinnedContext,
+            actionHistory: this.getSharedActionHistory(input.snapshot.meeting_id),
             currentAction: input.branchConfig.prompt,
             dynamicEvidenceContext: freshnessEvidence.dynamicContextText,
             freshnessGuidance,
@@ -926,6 +970,7 @@ export class ActionRunManager {
                 customContext: this.getCustomContext(),
                 projectDocsContext,
                 pinnedContext: input.pinnedContext,
+                actionHistory: this.getSharedActionHistory(input.snapshot.meeting_id),
                 currentAction: input.branchConfig.prompt,
                 dynamicEvidenceContext: freshnessEvidence.dynamicContextText,
                 freshnessGuidance,
@@ -943,6 +988,7 @@ export class ActionRunManager {
 
         const startedAt = input.startedAt;
         let firstTokenAt: number | undefined;
+        let finalText = '';
 
         try {
             const stream = this.openRouterClient.streamChatCompletion({
@@ -974,6 +1020,7 @@ export class ActionRunManager {
                     if (firstTokenAt === undefined) {
                         firstTokenAt = this.now();
                     }
+                    finalText += toBoundedString(event.token);
                     this.emitEvent({
                         type: 'action:token',
                         runId: input.runId,
@@ -1022,6 +1069,7 @@ export class ActionRunManager {
                     status: 'success',
                     metrics,
                     warnings: this.mergeWarnings(toolLoopWarnings, event.result.warnings),
+                    finalText: finalText.trim() || toBoundedString(event.result.content),
                 };
             }
 

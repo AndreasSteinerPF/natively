@@ -8,7 +8,10 @@ import { pathToFileURL } from 'node:url';
 const repoRoot = process.cwd();
 const distRoot = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot');
 
-const { DEFAULT_MEETING_COPILOT_CONFIG } = await import(
+const {
+  DEFAULT_MEETING_COPILOT_CONFIG,
+  getDefaultMeetingCopilotConfig,
+} = await import(
   pathToFileURL(path.join(distRoot, 'defaultActionConfig.js')).href
 );
 const { ActionConfigStore, validateMeetingCopilotConfig } = await import(
@@ -19,6 +22,11 @@ const REQUIRED_ACTION_IDS = [
   'quick-answer',
   'deep-answer',
   'tech-solver-parallel',
+];
+
+const SYSTEM_DESIGN_ACTION_IDS = [
+  'guide-me',
+  'go-deeper',
 ];
 
 const EXPECTED_DEFAULTS = {
@@ -105,6 +113,29 @@ function writeOverride(dirName, value, fileName = 'meeting-copilot.config.json')
 describe('meeting-copilot action config defaults', () => {
   test('default config validates', () => {
     assert.doesNotThrow(() => validateMeetingCopilotConfig(cloneConfig()));
+  });
+
+  test('system-design preset resolves to exactly guide-me and go-deeper actions', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    assert.deepEqual(Object.keys(config.actions), SYSTEM_DESIGN_ACTION_IDS);
+  });
+
+  test('system-design preset disables repo and project-doc defaults', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    assert.equal(config.code_context.enabled, false);
+    assert.equal(config.project_context.enabled, false);
+    assert.equal(config.actions['guide-me'].project_docs_enabled, undefined);
+    assert.equal(config.actions['go-deeper'].web_search_enabled, undefined);
+  });
+
+  test('system-design guide prompt encodes the full-step output shape', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['guide-me'].prompt;
+    assert.match(prompt, /Step/);
+    assert.match(prompt, /Goal/);
+    assert.match(prompt, /Draw/);
+    assert.match(prompt, /Say/);
+    assert.match(prompt, /Key Decisions/);
   });
 
   test('default config includes exactly the three required action IDs', () => {
@@ -231,6 +262,13 @@ describe('meeting-copilot action config defaults', () => {
       DEFAULT_MEETING_COPILOT_CONFIG.transcript_context.max_total_chars,
       EXPECTED_DEFAULTS.transcript_context.max_total_chars
     );
+  });
+
+  test('config file can select the system-design preset manually', async () => {
+    const dir = writeOverride('system-design-preset', { preset: 'system-design-interview' });
+    const store = new ActionConfigStore({ configDir: dir });
+    const config = await store.load();
+    assert.deepEqual(Object.keys(config.actions), SYSTEM_DESIGN_ACTION_IDS);
   });
 });
 

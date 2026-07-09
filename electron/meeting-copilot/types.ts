@@ -1,4 +1,5 @@
 export type ContextMode = 'recent' | 'full_cached';
+export type MeetingCopilotPreset = 'meeting-default' | 'system-design-interview';
 
 export type TranscriptChunkSource = 'mic' | 'system' | 'mixed';
 
@@ -134,6 +135,7 @@ export type PromptSectionKey =
     | 'meeting_transcript_so_far'
     | 'code_context'
     | 'dynamic_evidence_context'
+    | 'action_history'
     | 'current_action';
 
 export type PromptSectionCacheScope = 'metadata' | 'data';
@@ -157,6 +159,7 @@ export interface BuildMeetingCopilotContextInput {
     projectDocsContext?: string;
     pinnedContext: string;
     currentAction: string;
+    actionHistory?: string;
     freshnessGuidance?: string;
     dynamicEvidenceContext?: string;
     contextMinutes?: number;
@@ -405,6 +408,10 @@ export interface MeetingCopilotConfig {
     code_context: CodeContextConfig;
     transcript_context: TranscriptContextConfig;
     project_context: ProjectContextConfig;
+}
+
+export interface MeetingCopilotConfigFile extends Partial<MeetingCopilotConfig> {
+    preset?: MeetingCopilotPreset;
 }
 
 export interface LlmCallMetrics extends FreshnessMetrics {

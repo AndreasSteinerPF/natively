@@ -37,6 +37,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const which = require('which');
 
 const MODULES = ['better-sqlite3', 'keytar'];
 
@@ -66,6 +67,15 @@ function getElectronVersion(root) {
   }
 }
 
+function hasBuildTool(tool) {
+  try {
+    which.sync(tool);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function main() {
   const root = path.resolve(__dirname, '..');
 
@@ -90,6 +100,15 @@ function main() {
   const cli = path.join(root, 'node_modules', '@electron', 'rebuild', 'lib', 'cli.js');
   if (!fs.existsSync(cli)) {
     console.warn(`[rebuild-native] @electron/rebuild v4 CLI not found at ${cli} — skipping.`);
+    return;
+  }
+
+  if (os.platform() === 'linux' && !hasBuildTool('make')) {
+    console.warn(
+      '[rebuild-native] Skipping Electron native rebuild because `make` is not installed. ' +
+      'Dependency installation can continue, but Electron-native modules such as better-sqlite3/keytar ' +
+      'may not work until you install build tools and rerun `npm run rebuild:native`.'
+    );
     return;
   }
 

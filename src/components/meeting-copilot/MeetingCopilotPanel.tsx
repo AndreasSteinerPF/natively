@@ -28,7 +28,7 @@ const STATUS_LABELS: Record<MeetingCopilotRun['status'], string> = {
 const PANE_LABELS: Record<MeetingCopilotPaneKey, string> = {
   main: 'Answer',
   fast: 'Fast answer',
-  deep: 'Deep refinement',
+  deep: 'Deep answer',
 };
 
 function statusTone(status: MeetingCopilotRun['status']): string {

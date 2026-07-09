@@ -48,6 +48,7 @@ export function buildMeetingCopilotContext(
     input: BuildMeetingCopilotContextInput
 ): BuiltMeetingCopilotContext {
     const stableInstructions = withFreshnessStableInstructions(input.stableInstructions);
+    const actionHistory = input.actionHistory?.trim() ?? '';
 
     if (input.mode === 'recent') {
         const transcriptContent = formatTranscript(
@@ -78,6 +79,9 @@ export function buildMeetingCopilotContext(
                               cacheable: false,
                           }),
                       ]
+                    : []),
+                ...(actionHistory.length > 0
+                    ? [section('action_history', actionHistory, { cacheable: false })]
                     : []),
                 section('current_action', input.currentAction),
                 ...(input.freshnessGuidance && input.freshnessGuidance.trim().length > 0
@@ -123,6 +127,9 @@ export function buildMeetingCopilotContext(
                           cacheable: false,
                       }),
                   ]
+                : []),
+            ...(actionHistory.length > 0
+                ? [section('action_history', actionHistory, { cacheable: false })]
                 : []),
             section('current_action', input.currentAction, {
                 cacheable: false,

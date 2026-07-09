@@ -2,11 +2,13 @@ import fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_MEETING_COPILOT_CONFIG } from './defaultActionConfig';
+import { DEFAULT_MEETING_COPILOT_CONFIG, getDefaultMeetingCopilotConfig } from './defaultActionConfig';
 import {
     ActionBranchConfig,
     MeetingCopilotActionConfig,
     MeetingCopilotConfig,
+    MeetingCopilotConfigFile,
+    MeetingCopilotPreset,
     ReasoningEffort,
     ProjectContextConfig,
     ProjectContextPack,
@@ -35,13 +37,13 @@ export class ActionConfigStore {
     }
 
     async load(): Promise<MeetingCopilotConfig> {
-        const defaultConfig = cloneDefaultConfig();
         const overridePath = path.join(this.configDir, this.fileName);
-        let resolvedConfig: unknown = defaultConfig;
+        let resolvedConfig: unknown = cloneDefaultConfig();
 
         try {
             const file = await fs.readFile(overridePath, 'utf8');
             const parsed = JSON.parse(file) as unknown;
+            const defaultConfig = cloneDefaultConfig(resolvePreset(parsed));
             resolvedConfig = deepMerge(defaultConfig as unknown as JsonObject, parsed);
         } catch (error: unknown) {
             const nodeError = error as NodeJS.ErrnoException;
@@ -55,13 +57,13 @@ export class ActionConfigStore {
     }
 
     loadSync(): MeetingCopilotConfig {
-        const defaultConfig = cloneDefaultConfig();
         const overridePath = path.join(this.configDir, this.fileName);
-        let resolvedConfig: unknown = defaultConfig;
+        let resolvedConfig: unknown = cloneDefaultConfig();
 
         try {
             const file = readFileSync(overridePath, 'utf8');
             const parsed = JSON.parse(file) as unknown;
+            const defaultConfig = cloneDefaultConfig(resolvePreset(parsed));
             resolvedConfig = deepMerge(defaultConfig as unknown as JsonObject, parsed);
         } catch (error: unknown) {
             const nodeError = error as NodeJS.ErrnoException;
@@ -436,8 +438,22 @@ function validateProjectContextPack(value: unknown, pathName: string): ProjectCo
     };
 }
 
-function cloneDefaultConfig(): MeetingCopilotConfig {
-    return structuredClone(DEFAULT_MEETING_COPILOT_CONFIG);
+function resolvePreset(value: unknown): MeetingCopilotPreset {
+    if (!isPlainObject(value)) {
+        return 'meeting-default';
+    }
+    const preset = (value as MeetingCopilotConfigFile).preset;
+    if (preset === 'system-design-interview') {
+        return preset;
+    }
+    return 'meeting-default';
+}
+
+function cloneDefaultConfig(preset: MeetingCopilotPreset = 'meeting-default'): MeetingCopilotConfig {
+    if (preset === 'meeting-default') {
+        return structuredClone(DEFAULT_MEETING_COPILOT_CONFIG);
+    }
+    return getDefaultMeetingCopilotConfig(preset);
 }
 
 function deepMerge(base: unknown, override: unknown): unknown {

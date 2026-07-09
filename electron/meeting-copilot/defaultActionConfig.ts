@@ -1,4 +1,4 @@
-import { MeetingCopilotConfig } from './types';
+import { MeetingCopilotConfig, MeetingCopilotPreset } from './types';
 
 export const DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     'You are my live technical meeting copilot.',
@@ -28,15 +28,37 @@ export const DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     'risk worth flagging, or a natural next point — not a stale question I already got through.',
 ].join('\n');
 
-export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
-    openrouter: {
-        base_url: 'https://openrouter.ai/api/v1',
-        api_key_env: 'OPENROUTER_API_KEY',
-        default_headers: {
-            'HTTP-Referer': 'https://localhost/natively-private',
-            'X-Title': 'Natively Private Fork',
-        },
+const DEFAULT_OPENROUTER_CONFIG: MeetingCopilotConfig['openrouter'] = {
+    base_url: 'https://openrouter.ai/api/v1',
+    api_key_env: 'OPENROUTER_API_KEY',
+    default_headers: {
+        'HTTP-Referer': 'https://localhost/natively-private',
+        'X-Title': 'Natively Private Fork',
     },
+};
+
+const SYSTEM_DESIGN_GUIDE_PROMPT = [
+    'You are my live system design interview copilot.',
+    'Requirements are given up front. Do not default to discovery questions unless a critical ambiguity blocks the design.',
+    'Infer the current design phase and likely problem pattern from the transcript, prior action history, and any screenshot-derived board context.',
+    'Return exactly these sections in this order: Step, Goal, Draw, Say, Key Decisions.',
+    'Guide one complete design phase, not a micro-step.',
+    'Draw must be ordered Excalidraw actions I can execute directly.',
+    'Say must be concise interview-ready lines I can speak while drawing.',
+    'Key Decisions should capture the main assumptions, tradeoffs, or risks to mention for this phase.',
+    'Prefer generic architecture language first, but bias toward Python, FastAPI or Sanic, Postgres by default, Redis for cache, Kafka/RabbitMQ/SQS when async messaging is useful, AWS familiarity, and simplicity over over-engineering.',
+].join('\n');
+
+const SYSTEM_DESIGN_DEEPER_PROMPT = [
+    'You are my live system design interview reviewer.',
+    'Use the transcript, prior action history, and any screenshot-derived board context to critique the current design.',
+    'Build on the current design instead of restarting from scratch unless the current approach is fundamentally broken.',
+    'Strengthen weak tradeoffs, identify missing components, call out bottlenecks or failure modes, and give sharper follow-up language I can use.',
+    'Keep the response concise enough to use during a live interview.',
+].join('\n');
+
+const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
+    openrouter: DEFAULT_OPENROUTER_CONFIG,
     actions: {
         'quick-answer': {
             label: 'Quick Answer',
@@ -141,3 +163,70 @@ export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = {
         packs: [],
     },
 };
+
+const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
+    openrouter: DEFAULT_OPENROUTER_CONFIG,
+    actions: {
+        'guide-me': {
+            label: 'Guide Me',
+            trigger: {
+                hotkey: 'Command+Shift+1',
+                slash: '/guide',
+                button: false,
+            },
+            model: 'anthropic/claude-opus-4.8',
+            context_mode: 'full_cached',
+            cache_policy: 'anthropic_explicit_1h',
+            temperature: 0.2,
+            reasoning: {
+                effort: 'medium',
+            },
+            prompt: SYSTEM_DESIGN_GUIDE_PROMPT,
+        },
+        'go-deeper': {
+            label: 'Go Deeper',
+            trigger: {
+                hotkey: 'Command+Shift+2',
+                slash: '/deeper',
+                button: false,
+            },
+            model: 'anthropic/claude-opus-4.8',
+            context_mode: 'full_cached',
+            cache_policy: 'anthropic_explicit_1h',
+            temperature: 0.2,
+            reasoning: {
+                effort: 'high',
+            },
+            prompt: SYSTEM_DESIGN_DEEPER_PROMPT,
+        },
+    },
+    workspaces: [],
+    code_context: {
+        enabled: false,
+        retrieval_mode: 'tool_loop',
+        max_total_chars: 12000,
+        include_file_paths: false,
+        include_line_numbers: false,
+    },
+    transcript_context: {
+        max_total_chars: 24_000,
+    },
+    project_context: {
+        enabled: false,
+        max_docs_chars_per_pack: 20_000,
+        max_total_docs_chars: 40_000,
+        packs: [],
+    },
+};
+
+export function getDefaultMeetingCopilotConfig(
+    preset: MeetingCopilotPreset = 'meeting-default'
+): MeetingCopilotConfig {
+    if (preset === 'system-design-interview') {
+        return structuredClone(SYSTEM_DESIGN_INTERVIEW_CONFIG);
+    }
+
+    return structuredClone(MEETING_DEFAULT_CONFIG);
+}
+
+export const DEFAULT_MEETING_COPILOT_CONFIG: MeetingCopilotConfig = getDefaultMeetingCopilotConfig();
