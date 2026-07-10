@@ -6,10 +6,21 @@
       "transcript": "smart-meter-fresh/transcript.txt"
     },
     {
+      "id": "smart-meter-screenshot-only",
+      "action": "guide-me",
+      "transcript": "smart-meter-screenshot-only/transcript.txt"
+    },
+    {
       "id": "smart-meter-capacity",
       "action": "guide-me",
       "transcript": "smart-meter-capacity/transcript.txt",
       "actionHistory": "smart-meter-capacity/action-history.txt"
+    },
+    {
+      "id": "smart-meter-data-modeling",
+      "action": "guide-me",
+      "transcript": "smart-meter-data-modeling/transcript.txt",
+      "actionHistory": "smart-meter-data-modeling/action-history.txt"
     },
     {
       "id": "smart-meter-corrections-deep-dive",

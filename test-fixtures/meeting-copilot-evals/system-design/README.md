@@ -28,15 +28,23 @@ Run one case:
 npm run eval:meeting-copilot:suite -- --case smart-meter-fresh
 ```
 
+Current cases:
+
+- `smart-meter-fresh`: full problem statement in transcript; should start at Requirements & Scope.
+- `smart-meter-screenshot-only`: transcript is intentionally empty; add a screenshot to test board/problem grounding.
+- `smart-meter-capacity`: prior scope completed; should advance to Capacity & Constraints.
+- `smart-meter-data-modeling`: prior scope and capacity completed; should advance to Core Entities & Data Model.
+- `smart-meter-corrections-deep-dive`: interviewer asks a targeted drill-down; uses Go Deeper.
+
 To test screenshot grounding, add a real screenshot to a case folder and add it to
 `cases.json`:
 
 ```json
-"screenshots": ["smart-meter-fresh/problem.png"]
+"screenshots": ["smart-meter-screenshot-only/problem.png"]
 ```
 
 Suggested screenshots to add:
 
-- `smart-meter-fresh/problem.png`: the full initial smart-meter problem statement.
+- `smart-meter-screenshot-only/problem.png`: the full initial smart-meter problem statement.
 - `smart-meter-corrections-deep-dive/board.png`: a board with the ingestion pipeline
   and storage model already sketched.
