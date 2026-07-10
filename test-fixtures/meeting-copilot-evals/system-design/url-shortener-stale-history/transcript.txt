@@ -1,1 +1,0 @@
-[INTERVIEWER]: New problem. Design a URL shortener like bit.ly. Users can create short links, redirect through them, see basic click analytics, and manage links from a dashboard. We need high availability for redirects, low latency globally, and abuse prevention.

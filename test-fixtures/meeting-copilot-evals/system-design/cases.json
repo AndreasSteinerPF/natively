@@ -16,12 +16,6 @@
       "action": "go-deeper",
       "transcript": "smart-meter-corrections-deep-dive/transcript.txt",
       "actionHistory": "smart-meter-corrections-deep-dive/action-history.txt"
-    },
-    {
-      "id": "url-shortener-stale-history",
-      "action": "guide-me",
-      "transcript": "url-shortener-stale-history/transcript.txt",
-      "actionHistory": "url-shortener-stale-history/action-history.txt"
     }
   ]
 }
