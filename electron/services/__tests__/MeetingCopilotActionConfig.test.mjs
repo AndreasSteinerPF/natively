@@ -178,6 +178,19 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /If there is no evidence that a stage was completed, treat it as not completed/);
   });
 
+  test('system-design guide prompt prioritizes reasoning over forced board changes', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['guide-me'].prompt;
+
+    assert.match(prompt, /Draw can be `No board change needed yet`/);
+    assert.match(prompt, /Do not add redundant scope text just to fill Draw/);
+    assert.match(prompt, /Use Draw heavily for entities, APIs, architecture, flows, and deep dives/);
+    assert.match(prompt, /The interview is judged primarily on reasoning, tradeoffs, and grounded decision-making/);
+    assert.match(prompt, /Key Decisions must explain why the choice fits the stated requirements/);
+    assert.match(prompt, /name the tradeoff or risk it accepts/);
+    assert.match(prompt, /Ground reasoning in screenshot\/transcript facts, scale numbers, constraints, or explicit assumptions/);
+  });
+
   test('system-design deeper prompt is phase-aware and skimmable', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['go-deeper'].prompt;
