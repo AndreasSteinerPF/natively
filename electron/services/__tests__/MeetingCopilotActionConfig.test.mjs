@@ -213,6 +213,16 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /skimmable/i);
   });
 
+  test('system-design deeper prompt handles interviewer-requested drill-downs', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['go-deeper'].prompt;
+
+    assert.match(prompt, /If the interviewer asks to deep-dive a component/);
+    assert.match(prompt, /treat that as a requested drill-down, not only as a challenge/);
+    assert.match(prompt, /explain that component's design, data flow, failure modes, and tradeoffs before critiquing it/);
+    assert.match(prompt, /Answer the requested drill-down directly first/);
+  });
+
   test('default config includes exactly the three required action IDs', () => {
     assert.deepEqual(Object.keys(DEFAULT_MEETING_COPILOT_CONFIG.actions), REQUIRED_ACTION_IDS);
   });
