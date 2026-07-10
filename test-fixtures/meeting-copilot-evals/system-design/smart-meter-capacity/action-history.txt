@@ -1,0 +1,4 @@
+Guide Me
+Step: ADVANCE to Requirements & Scope
+Goal: Establish boundaries for smart-meter ingestion, customer usage queries, tariff-based estimated cost, support inspection, and historical reprocessing.
+Key Decisions: Treat external provider delivery as push-based, keep raw readings immutable for audit/reprocessing, and handle corrections separately from reprocessing jobs.

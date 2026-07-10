@@ -1,0 +1,3 @@
+[INTERVIEWER]: Okay, that scope sounds right. What are the main scale numbers and constraints we need to design around?
+
+[ME]: I have the requirements and boundaries summarized. We are in scope for ingestion, customer usage queries, tariff-based estimated cost, support inspection, and historical reprocessing. Out of scope are invoices, payments, and direct smart-meter communication.

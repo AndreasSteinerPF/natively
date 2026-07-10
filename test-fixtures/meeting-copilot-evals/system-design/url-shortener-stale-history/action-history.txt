@@ -1,0 +1,4 @@
+Guide Me
+Step: ADVANCE to High-Level Architecture for Smart Meter Energy Usage
+Goal: Design Kafka-based ingestion, TimescaleDB storage, Redis dashboard caching, and tariff-based cost calculation for smart-meter readings.
+Key Decisions: Use Kafka for burst buffering, immutable raw readings for audit, processed time-series tables for dashboard queries.

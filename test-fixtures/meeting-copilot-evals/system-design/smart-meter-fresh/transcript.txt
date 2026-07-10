@@ -1,0 +1,30 @@
+[INTERVIEWER]: Here's the problem statement on the screen. Design a system that ingests electricity readings from smart meters and lets customers view usage and estimated cost in a mobile or web app.
+
+Functional requirements:
+- Ingest half-hourly meter readings from an external metering provider.
+- Associate each reading with the correct meter, property, and customer account.
+- Support readings that arrive late, arrive out of chronological order, are duplicated, or are subsequently corrected.
+- Customers can retrieve usage for the last 24 hours, daily usage for the last 30 days, and monthly usage for the last 24 months.
+- Calculate estimated cost using the tariff effective at consumption time.
+- Internal support staff can inspect raw and processed readings for an account.
+- Reprocess historical readings when calculation logic changes.
+
+Scale:
+- 1 million active customers.
+- Up to 2 meters per customer.
+- Approximately 50 million readings per day.
+- Providers may deliver bursts up to 20x average ingestion rate.
+- Customers generate 5,000 dashboard requests per second at peak.
+
+Non-functional requirements:
+- No accepted meter reading may be silently lost.
+- Processing must be idempotent.
+- New readings should appear within five minutes of being received.
+- Usage-query latency below 300 ms p95.
+- Customer-facing availability target 99.9%.
+- Customer data must be isolated and access auditable.
+
+Out of scope:
+- Legally binding invoices.
+- Payment collection.
+- Direct communication with physical smart meters.

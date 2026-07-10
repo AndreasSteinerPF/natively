@@ -1,0 +1,5 @@
+Guide Me
+Step: ADVANCE to High-Level Architecture
+Goal: Establish the core ingestion, processing, storage, and query paths.
+Draw: Provider -> API Gateway -> Kafka -> Ingestion Workers -> Raw Store + Processed Store -> Aggregation -> Query API -> Customer App.
+Key Decisions: Queue absorbs bursts, raw readings are immutable, processed readings are idempotent by meter and interval, customer dashboards read pre-aggregated data.

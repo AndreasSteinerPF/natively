@@ -1,0 +1,3 @@
+[INTERVIEWER]: Let's go deeper on corrections. How exactly do corrected readings work, and how is that different from reprocessing historical data when calculation logic changes?
+
+[ME]: We have an ingestion API, a durable queue, consumer workers, raw immutable storage, processed interval tables, tariff lookup, and pre-aggregated read models for customer dashboards.
