@@ -223,6 +223,14 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Answer the requested drill-down directly first/);
   });
 
+  test('system-design deeper prompt keeps drill-downs inside stated scope', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['go-deeper'].prompt;
+
+    assert.match(prompt, /Do not introduce out-of-scope domains unless the interviewer explicitly asks/);
+    assert.match(prompt, /If an out-of-scope edge is relevant, mention it only as a brief boundary note/);
+  });
+
   test('default config includes exactly the three required action IDs', () => {
     assert.deepEqual(Object.keys(DEFAULT_MEETING_COPILOT_CONFIG.actions), REQUIRED_ACTION_IDS);
   });

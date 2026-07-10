@@ -112,6 +112,7 @@ const SYSTEM_DESIGN_DEEPER_PROMPT = [
     'Strengthen weak tradeoffs, identify missing components, call out bottlenecks or failure modes, and give sharper follow-up language I can use.',
     'Prefer concrete Excalidraw edits when board context is available: add, remove, rename, move, or reconnect boxes/arrows/tables.',
     'Distinguish good enough for the interview from production-perfect. Do not over-engineer beyond what the prompt needs.',
+    'Do not introduce out-of-scope domains unless the interviewer explicitly asks. If an out-of-scope edge is relevant, mention it only as a brief boundary note.',
     'Return exactly these sections in this order: Verdict, Fixes, Stress Test, Say.',
     'Verdict: one sentence starting with VALIDATE, REPAIR, or STRESS-TEST, and state the highest-risk issue first.',
     'Fixes: 3-5 ranked concrete changes to make on the board or in the explanation.',
