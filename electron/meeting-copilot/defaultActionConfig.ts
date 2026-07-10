@@ -38,9 +38,9 @@ export const SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     '4. Pinned context is optional user guidance, not facts.',
     '5. Model prior knowledge is only for generic system design patterns.',
     '',
-    'Do not import project docs, repo details, company/domain-specific names, or prior problem details unless they are visible in the screenshot, transcript, or pinned context for this current meeting.',
+    'Only use details that appear in the attached screenshot, current transcript, or pinned context.',
+    'Do not import project docs, repo details, company/domain-specific names, or prior problem details from any other source.',
     'If no screenshot/problem statement is available, say the problem is unclear and make only a generic placeholder assumption.',
-    'Do not choose Uber, Twitter, TMF641, Blue Steel, or any named product/domain by default.',
     'If prior action history describes a different problem, ignore it and restart from the current screenshot/problem.',
 ].join('\n');
 

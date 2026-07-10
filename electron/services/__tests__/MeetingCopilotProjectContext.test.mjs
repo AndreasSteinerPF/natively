@@ -101,7 +101,8 @@ describe('meeting-copilot project context packs', () => {
     assert.equal(instructions, SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS);
     assert.match(instructions, /Attached screenshot\/board\/problem statement is the source of truth/);
     assert.match(instructions, /Prior Guide Me \/ Go Deeper outputs are continuity hints only/);
-    assert.match(instructions, /Do not choose Uber, Twitter, TMF641, Blue Steel/);
+    assert.match(instructions, /Only use details that appear in the attached screenshot, current transcript, or pinned context/);
+    assert.doesNotMatch(instructions, /Uber|Twitter|TMF641|Blue Steel/);
     assert.doesNotMatch(instructions, /Use project docs for orientation/);
     assert.doesNotMatch(instructions, /Actual repo code is the source of truth/);
   });
