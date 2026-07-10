@@ -2965,6 +2965,9 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     () => collapseConsecutiveDuplicateSystemMessages(messages),
     [messages],
   );
+  const displayMessagesNewestFirst = useMemo(() => {
+    return [...displayMessages].reverse();
+  }, [displayMessages]);
   // ──────────────────────────────────────────────────────────────────────────
 
   const applyRollingPartialPreview = useCallback((partialText: string) => {
@@ -6086,7 +6089,8 @@ Provide only the answer, nothing else.`;
                                         so a setMessages on the streaming row does NOT
                                         re-render every prior message — bailout fires on
                                         identity equality (msg, theme, callbacks). */}
-                  {displayMessages.map((msg: Message) => (
+                  <div ref={messagesEndRef} />
+                  {displayMessagesNewestFirst.map((msg: Message) => (
                     <MessageRow
                       key={msg.id}
                       msg={msg}
@@ -6166,7 +6170,6 @@ Provide only the answer, nothing else.`;
                       </div>
                     </div>
                   )}
-                  <div ref={messagesEndRef} />
                 </motion.div>
               )}
 
