@@ -29,7 +29,11 @@ import {
   DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
 } from './meeting-copilot/defaultActionConfig';
 import { ProjectContextStore } from './meeting-copilot/ProjectContextStore';
-import { setMeetingCopilotActionStarter } from './meeting-copilot/hotkeys';
+import {
+  configureMeetingCopilotHotkeyBindings,
+  MEETING_COPILOT_HOTKEY_BINDINGS,
+  setMeetingCopilotActionStarter,
+} from './meeting-copilot/hotkeys';
 import { registerMeetingCopilotIpc } from './meeting-copilot/ipc';
 import { MetricsStore } from './meeting-copilot/MetricsStore';
 import { FreshnessTools } from './meeting-copilot/FreshnessTools';
@@ -290,6 +294,16 @@ export function initializeIpcHandlers(appState: AppState): void {
       };
     },
   });
+  const meetingCopilotHotkeySlots = MEETING_COPILOT_HOTKEY_BINDINGS.map((binding) => ({
+    ...binding,
+    hotkey: meetingCopilotConfig.actions[binding.actionId]?.trigger.hotkey,
+  }));
+  configureMeetingCopilotHotkeyBindings(
+    Object.entries(meetingCopilotConfig.actions).flatMap(([actionId, action]) => {
+      const slot = meetingCopilotHotkeySlots.find((binding) => binding.hotkey === action.trigger.hotkey);
+      return slot ? [{ keybindId: slot.keybindId, actionId }] : [];
+    })
+  );
   setMeetingCopilotActionStarter((payload) => meetingCopilotActionRunManager.start(payload));
   const meetingCopilotIpc = registerMeetingCopilotIpc({
     ipcMain,

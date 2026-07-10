@@ -11,7 +11,7 @@ export const MEETING_COPILOT_HOTKEY_BINDINGS: MeetingCopilotHotkeyBinding[] = [
     { keybindId: 'meeting-copilot:tech-solver-parallel', actionId: 'tech-solver-parallel' },
 ];
 
-const MEETING_COPILOT_HOTKEY_ACTIONS = new Map(
+let meetingCopilotHotkeyActions = new Map(
     MEETING_COPILOT_HOTKEY_BINDINGS.map((binding) => [binding.keybindId, binding.actionId] as const)
 );
 
@@ -25,10 +25,18 @@ export function setMeetingCopilotActionStarter(
     meetingCopilotActionStarter = starter;
 }
 
+export function configureMeetingCopilotHotkeyBindings(bindings: MeetingCopilotHotkeyBinding[]): void {
+    meetingCopilotHotkeyActions = new Map(
+        bindings
+            .filter((binding) => binding.keybindId.trim() && binding.actionId.trim())
+            .map((binding) => [binding.keybindId, binding.actionId] as const)
+    );
+}
+
 export function toMeetingCopilotActionStartPayload(
     keybindId: string,
 ): Extract<MeetingCopilotInvoke, { type: 'action:start' }> | null {
-    const actionId = MEETING_COPILOT_HOTKEY_ACTIONS.get(keybindId);
+    const actionId = meetingCopilotHotkeyActions.get(keybindId);
     if (!actionId) return null;
     return { type: 'action:start', actionId };
 }

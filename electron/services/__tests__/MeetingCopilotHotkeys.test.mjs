@@ -225,6 +225,31 @@ describe('meeting-copilot hotkeys', () => {
     });
     assert.equal(toMeetingCopilotActionStartPayload('chat:whatToAnswer'), null);
   });
+
+  test('active Meeting Copilot config can remap hotkey slots to preset-specific action ids', async () => {
+    const {
+      configureMeetingCopilotHotkeyBindings,
+      setMeetingCopilotActionStarter,
+      startMeetingCopilotActionForKeybind,
+      toMeetingCopilotActionStartPayload,
+    } = await loadHotkeysModule();
+    const started = [];
+
+    configureMeetingCopilotHotkeyBindings([
+      { keybindId: 'meeting-copilot:quick-answer', actionId: 'guide-me' },
+      { keybindId: 'meeting-copilot:deep-answer', actionId: 'go-deeper' },
+    ]);
+    setMeetingCopilotActionStarter((payload) => {
+      started.push(payload);
+    });
+
+    assert.deepEqual(toMeetingCopilotActionStartPayload('meeting-copilot:quick-answer'), {
+      type: 'action:start',
+      actionId: 'guide-me',
+    });
+    assert.equal(await startMeetingCopilotActionForKeybind('meeting-copilot:quick-answer'), true);
+    assert.deepEqual(started, [{ type: 'action:start', actionId: 'guide-me' }]);
+  });
 });
 
 test('main source routes Meeting Copilot hotkeys through the hotkey helper', async () => {
