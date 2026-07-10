@@ -1,3 +1,5 @@
 [INTERVIEWER]: Okay, that scope sounds right. What are the main scale numbers and constraints we need to design around?
 
 [ME]: I have the requirements and boundaries summarized. We are in scope for ingestion, customer usage queries, tariff-based estimated cost, support inspection, and historical reprocessing. Out of scope are invoices, payments, and direct smart-meter communication.
+
+[INTERVIEWER]: The stated scale is 1 million active customers, up to 2 meters per customer, approximately 50 million readings per day, provider bursts up to 20x average ingestion rate, and 5,000 dashboard requests per second at peak. New readings should appear within five minutes, usage-query latency should be below 300 ms p95, and no accepted reading may be silently lost.
