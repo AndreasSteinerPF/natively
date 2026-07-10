@@ -710,7 +710,7 @@ interface ElectronAPI {
   onKeybindsUpdate: (callback: (keybinds: Array<any>) => void) => () => void;
 
   // Global shortcut events (stealth: fired even when window is not focused)
-  onGlobalShortcut: (callback: (data: { action: string }) => void) => () => void;
+  onGlobalShortcut: (callback: (data: { action: string; actionId?: string }) => void) => () => void;
 
   // CGEventTap-backed stealth keyboard tap (macOS only). Returns false on
   // non-macOS or when the native module / Accessibility permission is missing.

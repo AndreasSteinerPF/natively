@@ -11,6 +11,9 @@ const distRoot = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot'
 const {
   DEFAULT_MEETING_COPILOT_CONFIG,
   DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
+  SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS,
+  getDefaultMeetingCopilotConfig,
+  getMeetingCopilotStableInstructions,
 } = await import(
   pathToFileURL(path.join(distRoot, 'defaultActionConfig.js')).href
 );
@@ -89,6 +92,18 @@ describe('meeting-copilot project context packs', () => {
     assert.match(DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS, /Project docs are useful orientation/);
     assert.match(DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS, /Actual repo code is the source of truth/);
     assert.match(DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS, /When docs and code disagree, prefer code/);
+  });
+
+  test('system-design stable instructions prioritize screenshot context and reject stale prior problems', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const instructions = getMeetingCopilotStableInstructions(config);
+
+    assert.equal(instructions, SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS);
+    assert.match(instructions, /Attached screenshot\/board\/problem statement is the source of truth/);
+    assert.match(instructions, /Prior Guide Me \/ Go Deeper outputs are continuity hints only/);
+    assert.match(instructions, /Do not choose Uber, Twitter, TMF641, Blue Steel/);
+    assert.doesNotMatch(instructions, /Use project docs for orientation/);
+    assert.doesNotMatch(instructions, /Actual repo code is the source of truth/);
   });
 
   test('config validation accepts an enabled project context pack', () => {

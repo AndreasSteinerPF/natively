@@ -405,7 +405,7 @@ import { ModelSelectorWindowHelper } from "./ModelSelectorWindowHelper"
 import { CropperWindowHelper } from "./CropperWindowHelper"
 import { ScreenshotHelper } from "./ScreenshotHelper"
 import { KeybindManager } from "./services/KeybindManager"
-import { startMeetingCopilotActionForKeybind } from "./meeting-copilot/hotkeys"
+import { toMeetingCopilotActionStartPayload } from "./meeting-copilot/hotkeys"
 import { ProcessingHelper } from "./ProcessingHelper"
 
 import { IntelligenceManager } from "./IntelligenceManager"
@@ -912,24 +912,33 @@ export class AppState {
           };
           const action = actionMap[actionId];
           this.sendToMeetingSurfaces('global-shortcut', { action });
-        } else if (await startMeetingCopilotActionForKeybind(actionId)) {
-          console.log(`[Main] Started Meeting Copilot action from hotkey: ${actionId}`);
+        } else {
+          const meetingCopilotPayload = toMeetingCopilotActionStartPayload(actionId);
+          if (meetingCopilotPayload) {
+            this.sendToMeetingSurfaces('global-shortcut', {
+              action: 'meetingCopilotAction',
+              actionId: meetingCopilotPayload.actionId,
+            });
+            console.log(`[Main] Routed Meeting Copilot action hotkey to renderer: ${actionId}`);
+            return;
+          }
 
-        // Window movement — move window position without focus change
-        } else if (actionId === 'window:move-up') {
-          this.windowHelper.moveWindowUp();
-        } else if (actionId === 'window:move-down') {
-          this.windowHelper.moveWindowDown();
-        } else if (actionId === 'window:move-left') {
-          this.windowHelper.moveWindowLeft();
-        } else if (actionId === 'window:move-right') {
-          this.windowHelper.moveWindowRight();
+          // Window movement — move window position without focus change
+          if (actionId === 'window:move-up') {
+            this.windowHelper.moveWindowUp();
+          } else if (actionId === 'window:move-down') {
+            this.windowHelper.moveWindowDown();
+          } else if (actionId === 'window:move-left') {
+            this.windowHelper.moveWindowLeft();
+          } else if (actionId === 'window:move-right') {
+            this.windowHelper.moveWindowRight();
 
-        // General actions that are now global (stealth)
-        } else if (actionId === 'general:process-screenshots') {
-          this.sendToMeetingSurfaces('global-shortcut', { action: 'processScreenshots' });
-        } else if (actionId === 'general:reset-cancel') {
-          this.sendToMeetingSurfaces('global-shortcut', { action: 'resetCancel' });
+          // General actions that are now global (stealth)
+          } else if (actionId === 'general:process-screenshots') {
+            this.sendToMeetingSurfaces('global-shortcut', { action: 'processScreenshots' });
+          } else if (actionId === 'general:reset-cancel') {
+            this.sendToMeetingSurfaces('global-shortcut', { action: 'resetCancel' });
+          }
         }
       } catch (e: any) {
         if (e.message !== "Selection cancelled" && e.message !== "Screenshot capture already in progress") {

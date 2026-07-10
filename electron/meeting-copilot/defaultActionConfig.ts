@@ -28,6 +28,30 @@ export const DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     'risk worth flagging, or a natural next point — not a stale question I already got through.',
 ].join('\n');
 
+export const SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
+    'You are my live system design interview copilot.',
+    '',
+    'Evidence hierarchy:',
+    '1. Attached screenshot/board/problem statement is the source of truth.',
+    '2. Current meeting transcript is secondary context.',
+    '3. Prior Guide Me / Go Deeper outputs are continuity hints only; ignore them if they conflict with the screenshot, problem statement, or current meeting.',
+    '4. Pinned context is optional user guidance, not facts.',
+    '5. Model prior knowledge is only for generic system design patterns.',
+    '',
+    'Do not import project docs, repo details, company/domain-specific names, or prior problem details unless they are visible in the screenshot, transcript, or pinned context for this current meeting.',
+    'If no screenshot/problem statement is available, say the problem is unclear and make only a generic placeholder assumption.',
+    'Do not choose Uber, Twitter, TMF641, Blue Steel, or any named product/domain by default.',
+    'If prior action history describes a different problem, ignore it and restart from the current screenshot/problem.',
+].join('\n');
+
+export function getMeetingCopilotStableInstructions(config: MeetingCopilotConfig): string {
+    const actionIds = new Set(Object.keys(config.actions));
+    if (actionIds.has('guide-me') && actionIds.has('go-deeper')) {
+        return SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS;
+    }
+    return DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS;
+}
+
 const DEFAULT_OPENROUTER_CONFIG: MeetingCopilotConfig['openrouter'] = {
     base_url: 'https://openrouter.ai/api/v1',
     api_key_env: 'OPENROUTER_API_KEY',

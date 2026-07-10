@@ -1022,6 +1022,10 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const [attachedContext, setAttachedContext] = useState<Array<{ path: string; preview: string }>>(
     [],
   );
+  const attachedContextRef = useRef<Array<{ path: string; preview: string }>>([]);
+  useEffect(() => {
+    attachedContextRef.current = attachedContext;
+  }, [attachedContext]);
 
   // Settings State with Persistence
   const [isUndetectable, setIsUndetectable] = useState(false);
@@ -1160,12 +1164,13 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const startSystemDesignAction = useCallback(
     (actionId: string) => {
       const pending = pendingCaptureRef.current;
-      let currentAttachments = attachedContext;
+      let currentAttachments = attachedContextRef.current;
       if (pending && !currentAttachments.some((s) => s.path === pending.path)) {
         currentAttachments = [...currentAttachments, pending].slice(-5);
       }
 
       if (currentAttachments.length > 0) {
+        attachedContextRef.current = [];
         setAttachedContext([]);
         pendingCaptureRef.current = null;
       }
@@ -1176,7 +1181,7 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
         imagePaths: currentAttachments.length > 0 ? currentAttachments.map((s) => s.path) : undefined,
       });
     },
-    [attachedContext],
+    [],
   );
 
   // PERF: hoist ReactMarkdown `components` maps for every streaming intent
@@ -2461,7 +2466,9 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
       // Prevent duplicates and cap at 5
       if (prev.some((s) => s.path === data.path)) return prev;
       const updated = [...prev, data];
-      return updated.slice(-5); // Keep last 5
+      const next = updated.slice(-5); // Keep last 5
+      attachedContextRef.current = next;
+      return next;
     });
   };
 
@@ -5210,7 +5217,7 @@ Provide only the answer, nothing else.`;
   // Listens for shortcuts triggered when the app is in the background
   useEffect(() => {
     if (!window.electronAPI.onGlobalShortcut) return;
-    const unsubscribe = window.electronAPI.onGlobalShortcut(({ action }) => {
+    const unsubscribe = window.electronAPI.onGlobalShortcut(({ action, actionId }) => {
       const handlers = handlersRef.current;
       const generalHandlers = generalHandlersRef.current;
 
@@ -5227,6 +5234,7 @@ Provide only the answer, nothing else.`;
       else if (action === 'clarify') handlers.handleClarify();
       else if (action === 'codeHint') handlers.handleCodeHint();
       else if (action === 'brainstorm') handlers.handleBrainstorm();
+      else if (action === 'meetingCopilotAction' && actionId) startSystemDesignAction(actionId);
       else if (action === 'scrollUp') inertialScrollRef.current?.kick('vert', -1);
       else if (action === 'scrollDown') inertialScrollRef.current?.kick('vert', 1);
       else if (action === 'scrollLeft') inertialScrollRef.current?.kick('horiz', -1);

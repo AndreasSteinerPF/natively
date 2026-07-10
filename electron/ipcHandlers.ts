@@ -26,7 +26,7 @@ import { CodeWorkspaceStore } from './meeting-copilot/CodeWorkspaceStore';
 import { buildTranscriptSnapshot } from './meeting-copilot/TranscriptBridge';
 import {
   DEFAULT_MEETING_COPILOT_CONFIG,
-  DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
+  getMeetingCopilotStableInstructions,
 } from './meeting-copilot/defaultActionConfig';
 import { ProjectContextStore } from './meeting-copilot/ProjectContextStore';
 import {
@@ -267,7 +267,7 @@ export function initializeIpcHandlers(appState: AppState): void {
     config: meetingCopilotConfig,
     transcriptSnapshotProvider: () => buildTranscriptSnapshot({
       segments: appState.getIntelligenceManager().getCurrentMeetingTranscript(),
-      meetingId: 'meeting-copilot-live',
+      meetingId: appState.getIntelligenceManager().getCurrentMeetingSessionId(),
       maxTotalChars: meetingCopilotConfig.transcript_context.max_total_chars,
     }),
     buildContext: buildMeetingCopilotContext,
@@ -276,7 +276,7 @@ export function initializeIpcHandlers(appState: AppState): void {
     emitEvent: (event) => emitMeetingCopilotEvent(event),
     toolLoop,
     metricsStore,
-    getStableInstructions: () => DEFAULT_MEETING_COPILOT_STABLE_INSTRUCTIONS,
+    getStableInstructions: () => getMeetingCopilotStableInstructions(meetingCopilotConfig),
     freshnessTools,
     hasFreshnessTools: hasMeetingCopilotFreshnessTools,
     getPinnedContext: async () => {

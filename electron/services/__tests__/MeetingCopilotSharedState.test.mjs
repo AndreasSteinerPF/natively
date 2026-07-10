@@ -11,12 +11,16 @@ const { ActionRunManager } = await import(
 );
 
 function createSnapshot() {
+  return createSnapshotForMeeting('meeting-123');
+}
+
+function createSnapshotForMeeting(meetingId) {
   return {
-    meeting_id: 'meeting-123',
+    meeting_id: meetingId,
     chunks: [
       {
         id: 'chunk-001',
-        meeting_id: 'meeting-123',
+        meeting_id: meetingId,
         start_ts: '2026-07-03T10:00:00.000Z',
         end_ts: '2026-07-03T10:00:30.000Z',
         text: 'Design a scalable notification service.',
@@ -125,5 +129,64 @@ describe('meeting-copilot shared action state', () => {
       builtContexts[1].actionHistory,
       /Guide Me[\s\S]*Postgres as the source of truth\./
     );
+  });
+
+  test('action history is isolated across meeting ids', async () => {
+    const builtContexts = [];
+    const snapshots = [
+      createSnapshotForMeeting('meeting-one'),
+      createSnapshotForMeeting('meeting-two'),
+    ];
+    const responses = [
+      'Step: Scope\nSay: This is an Uber-like ride-sharing service.',
+      'Step: Scope\nSay: This is a clean new problem.',
+    ];
+    const manager = new ActionRunManager({
+      config: createConfig(),
+      transcriptSnapshotProvider: () => snapshots.shift(),
+      buildContext: (input) => {
+        builtContexts.push(input);
+        return { mode: input.mode, sections: [] };
+      },
+      buildMessages: () => ({ messages: [] }),
+      openRouterClient: {
+        streamChatCompletion: async function* () {
+          const content = responses.shift() ?? '';
+          yield { type: 'token', token: content };
+          yield {
+            type: 'done',
+            result: {
+              content,
+              raw: {},
+              warnings: [],
+              metrics: {
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+              },
+            },
+          };
+        },
+      },
+      emitEvent: () => {},
+      createRunId: (() => {
+        let id = 0;
+        return () => `run-${++id}`;
+      })(),
+      now: (() => {
+        let tick = 0;
+        return () => ++tick;
+      })(),
+      getStableInstructions: () => 'Use transcript faithfully.',
+      getCustomContext: () => '',
+      getPinnedContext: () => '',
+      getCodeContext: () => '',
+    });
+
+    await manager.start({ actionId: 'guide-me' });
+    await manager.start({ actionId: 'guide-me' });
+
+    assert.equal(builtContexts[0].actionHistory, '');
+    assert.equal(builtContexts[1].actionHistory, '');
   });
 });

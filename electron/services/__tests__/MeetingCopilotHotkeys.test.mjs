@@ -14,6 +14,8 @@ const compiledKeybindManagerPath = path.resolve(repoRoot, 'dist-electron/electro
 const compiledHotkeysPath = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot/hotkeys.js');
 const compiledActionConfigPath = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot/defaultActionConfig.js');
 const mainSourcePath = path.resolve(repoRoot, 'electron/main.ts');
+const ipcHandlersSourcePath = path.resolve(repoRoot, 'electron/ipcHandlers.ts');
+const nativelyInterfaceSourcePath = path.resolve(repoRoot, 'src/components/NativelyInterface.tsx');
 
 const realLoad = Module._load;
 
@@ -285,8 +287,22 @@ describe('meeting-copilot hotkeys', () => {
   });
 });
 
-test('main source routes Meeting Copilot hotkeys through the hotkey helper', async () => {
+test('main source routes Meeting Copilot hotkeys through renderer global-shortcut IPC', async () => {
   const source = fs.readFileSync(mainSourcePath, 'utf8');
-  assert.match(source, /startMeetingCopilotActionForKeybind/);
-  assert.match(source, /startMeetingCopilotActionForKeybind\(actionId\)/);
+  assert.match(source, /toMeetingCopilotActionStartPayload/);
+  assert.match(source, /action:\s*['"]meetingCopilotAction['"]/);
+  assert.doesNotMatch(source, /await\s+startMeetingCopilotActionForKeybind\(actionId\)/);
+});
+
+test('renderer handles Meeting Copilot global shortcuts through the attachment-aware action path', async () => {
+  const source = fs.readFileSync(nativelyInterfaceSourcePath, 'utf8');
+  assert.match(source, /action === ['"]meetingCopilotAction['"] && actionId/);
+  assert.match(source, /startSystemDesignAction\(actionId\)/);
+  assert.match(source, /imagePaths:\s*currentAttachments\.length > 0 \? currentAttachments\.map\(\(s\) => s\.path\) : undefined/);
+});
+
+test('Meeting Copilot transcript bridge uses the live session id, not one constant id', async () => {
+  const source = fs.readFileSync(ipcHandlersSourcePath, 'utf8');
+  assert.match(source, /getCurrentMeetingSessionId/);
+  assert.doesNotMatch(source, /meetingId:\s*['"]meeting-copilot-live['"]/);
 });

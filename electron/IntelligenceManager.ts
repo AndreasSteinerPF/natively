@@ -137,6 +137,10 @@ export class IntelligenceManager extends EventEmitter {
         return this.session.getFullTranscript().map(s => ({ speaker: s.speaker, text: s.text, timestamp: s.timestamp }));
     }
 
+    getCurrentMeetingSessionId(): string {
+        return `meeting-copilot-live-${this.session.getSessionStartTime()}`;
+    }
+
     logUsage(type: string, question: string, answer: string): void {
         this.session.logUsage(type, question, answer);
     }
