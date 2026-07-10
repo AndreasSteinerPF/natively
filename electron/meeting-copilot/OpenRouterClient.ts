@@ -174,7 +174,7 @@ function hasCacheControl(messages: OpenRouterMessage[]): boolean {
             return false;
         }
 
-        return message.content.some((block) => block.cache_control !== undefined);
+        return message.content.some((block) => block.type === 'text' && block.cache_control !== undefined);
     });
 }
 

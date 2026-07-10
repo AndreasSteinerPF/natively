@@ -106,14 +106,14 @@ export function buildOpenRouterMessages(input: {
     if (userBlocks.length > 0) {
         messages.push({
             role: 'user',
-            content: userBlocks.length === 1 ? userBlocks[0].text : userBlocks,
+            content: userBlocks.length === 1 && userBlocks[0].type === 'text' ? userBlocks[0].text : userBlocks,
         });
     }
 
     return {
         messages,
         cacheable_block_count: systemBlocks.filter((block) => block.type === 'text' && block.cache_control !== undefined).length,
-        cache_control_applied: cacheControl !== undefined && systemBlocks.some((block) => block.cache_control !== undefined),
+        cache_control_applied: cacheControl !== undefined && systemBlocks.some((block) => block.type === 'text' && block.cache_control !== undefined),
     };
 }
 
