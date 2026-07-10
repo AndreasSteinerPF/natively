@@ -8,7 +8,8 @@
     {
       "id": "smart-meter-screenshot-only",
       "action": "guide-me",
-      "transcript": "smart-meter-screenshot-only/transcript.txt"
+      "transcript": "smart-meter-screenshot-only/transcript.txt",
+      "screenshots": ["smart-meter-screenshot-only/problem.png"]
     },
     {
       "id": "smart-meter-capacity",
