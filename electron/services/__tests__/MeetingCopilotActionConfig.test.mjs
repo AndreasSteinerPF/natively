@@ -165,6 +165,19 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /skimmable/i);
   });
 
+  test('system-design guide prompt enforces the fixed interview phase ladder', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['guide-me'].prompt;
+
+    assert.match(prompt, /The problem statement is usually given up front, but Requirements & Scope still must be the first interview phase/);
+    assert.match(prompt, /Requirements & Scope -> Capacity & Constraints -> Core Entities & Data Model -> APIs & Access Patterns -> High-Level Architecture -> Deep Dives -> Reliability & Tradeoffs/);
+    assert.match(prompt, /If the screenshot is a fresh problem statement and the transcript has no substantive progress, start at Requirements & Scope/);
+    assert.match(prompt, /Do not skip to High-Level Architecture from an initial problem statement/);
+    assert.match(prompt, /Only advance to the next single incomplete stage in the fixed flow/);
+    assert.match(prompt, /Infer completed stages only from transcript, screenshot\/board state, and prior action history/);
+    assert.match(prompt, /If there is no evidence that a stage was completed, treat it as not completed/);
+  });
+
   test('system-design deeper prompt is phase-aware and skimmable', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['go-deeper'].prompt;
