@@ -161,11 +161,12 @@ function validateActions(value: unknown, pathName: string): Record<string, Meeti
 
         const label = requireNonEmptyString(actionValue.label, `${actionPath}.label`);
         const trigger = validateTrigger(actionValue.trigger, `${actionPath}.trigger`);
-        const duplicateOwner = hotkeys.get(trigger.hotkey);
+        const normalizedHotkey = normalizeAccelerator(trigger.hotkey);
+        const duplicateOwner = hotkeys.get(normalizedHotkey);
         if (duplicateOwner) {
             throw new Error(`${actionPath}.trigger.hotkey must be unique; duplicate ${trigger.hotkey}`);
         }
-        hotkeys.set(trigger.hotkey, actionId);
+        hotkeys.set(normalizedHotkey, actionId);
 
         if ('parallel' in actionValue && actionValue.parallel !== undefined) {
             assertObject(actionValue.parallel, `${actionPath}.parallel`);
@@ -194,6 +195,14 @@ function validateActions(value: unknown, pathName: string): Record<string, Meeti
     }
 
     return actions;
+}
+
+function normalizeAccelerator(accelerator: string): string {
+    return accelerator
+        .split('+')
+        .map((part) => part.trim().toLowerCase())
+        .sort()
+        .join('+');
 }
 
 function validateTrigger(value: unknown, pathName: string) {

@@ -234,6 +234,7 @@ describe('meeting-copilot hotkeys', () => {
 
   test('active Meeting Copilot config can remap hotkey slots to preset-specific action ids', async () => {
     const {
+      MEETING_COPILOT_HOTKEY_BINDINGS,
       configureMeetingCopilotHotkeyBindings,
       setMeetingCopilotActionStarter,
       startMeetingCopilotActionForKeybind,
@@ -255,6 +256,9 @@ describe('meeting-copilot hotkeys', () => {
     });
     assert.equal(await startMeetingCopilotActionForKeybind('meeting-copilot:quick-answer'), true);
     assert.deepEqual(started, [{ type: 'action:start', actionId: 'guide-me' }]);
+
+    configureMeetingCopilotHotkeyBindings(MEETING_COPILOT_HOTKEY_BINDINGS);
+    setMeetingCopilotActionStarter(null);
   });
 
   test('system-design preset maps Command+Shift hotkey slots to guide-me and go-deeper', async () => {
@@ -266,6 +270,18 @@ describe('meeting-copilot hotkeys', () => {
       { keybindId: 'meeting-copilot:quick-answer', actionId: 'guide-me' },
       { keybindId: 'meeting-copilot:deep-answer', actionId: 'go-deeper' },
     ]);
+  });
+
+  test('Meeting Copilot hotkey slot accelerators stay in sync with KeybindManager defaults', async () => {
+    const { MEETING_COPILOT_HOTKEY_BINDINGS } = await loadHotkeysModule();
+    const { DEFAULT_KEYBINDS } = await loadKeybindManagerModule();
+    const defaultAcceleratorsById = new Map(
+      DEFAULT_KEYBINDS.map((keybind) => [keybind.id, keybind.defaultAccelerator])
+    );
+
+    for (const binding of MEETING_COPILOT_HOTKEY_BINDINGS) {
+      assert.equal(binding.accelerator, defaultAcceleratorsById.get(binding.keybindId));
+    }
   });
 });
 

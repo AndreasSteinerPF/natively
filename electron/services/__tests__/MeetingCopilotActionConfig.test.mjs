@@ -349,6 +349,15 @@ describe('meeting-copilot action config validation', () => {
     );
   });
 
+  test('normalized duplicate hotkeys are rejected', () => {
+    const config = cloneConfig();
+    config.actions['deep-answer'].trigger.hotkey = 'Shift+Command+1';
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /actions\.deep-answer\.trigger\.hotkey must be unique; duplicate Shift\+Command\+1/
+    );
+  });
+
   test('empty model is rejected', () => {
     const config = cloneConfig();
     config.actions['quick-answer'].model = '';
