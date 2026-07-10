@@ -12,6 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../..');
 const compiledKeybindManagerPath = path.resolve(repoRoot, 'dist-electron/electron/services/KeybindManager.js');
 const compiledHotkeysPath = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot/hotkeys.js');
+const compiledActionConfigPath = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot/defaultActionConfig.js');
 const mainSourcePath = path.resolve(repoRoot, 'electron/main.ts');
 
 const realLoad = Module._load;
@@ -100,6 +101,11 @@ async function loadKeybindManagerModule() {
 async function loadHotkeysModule() {
   delete require.cache[compiledHotkeysPath];
   return import(pathToFileURL(compiledHotkeysPath).href);
+}
+
+async function loadActionConfigModule() {
+  delete require.cache[compiledActionConfigPath];
+  return import(pathToFileURL(compiledActionConfigPath).href);
 }
 
 beforeEach(() => {
@@ -249,6 +255,17 @@ describe('meeting-copilot hotkeys', () => {
     });
     assert.equal(await startMeetingCopilotActionForKeybind('meeting-copilot:quick-answer'), true);
     assert.deepEqual(started, [{ type: 'action:start', actionId: 'guide-me' }]);
+  });
+
+  test('system-design preset maps Command+Shift hotkey slots to guide-me and go-deeper', async () => {
+    const { buildMeetingCopilotHotkeyBindings } = await loadHotkeysModule();
+    const { getDefaultMeetingCopilotConfig } = await loadActionConfigModule();
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+
+    assert.deepEqual(buildMeetingCopilotHotkeyBindings(config.actions), [
+      { keybindId: 'meeting-copilot:quick-answer', actionId: 'guide-me' },
+      { keybindId: 'meeting-copilot:deep-answer', actionId: 'go-deeper' },
+    ]);
   });
 });
 

@@ -30,8 +30,8 @@ import {
 } from './meeting-copilot/defaultActionConfig';
 import { ProjectContextStore } from './meeting-copilot/ProjectContextStore';
 import {
+  buildMeetingCopilotHotkeyBindings,
   configureMeetingCopilotHotkeyBindings,
-  MEETING_COPILOT_HOTKEY_BINDINGS,
   setMeetingCopilotActionStarter,
 } from './meeting-copilot/hotkeys';
 import { registerMeetingCopilotIpc } from './meeting-copilot/ipc';
@@ -294,16 +294,7 @@ export function initializeIpcHandlers(appState: AppState): void {
       };
     },
   });
-  const meetingCopilotHotkeySlots = MEETING_COPILOT_HOTKEY_BINDINGS.map((binding) => ({
-    ...binding,
-    hotkey: meetingCopilotConfig.actions[binding.actionId]?.trigger.hotkey,
-  }));
-  configureMeetingCopilotHotkeyBindings(
-    Object.entries(meetingCopilotConfig.actions).flatMap(([actionId, action]) => {
-      const slot = meetingCopilotHotkeySlots.find((binding) => binding.hotkey === action.trigger.hotkey);
-      return slot ? [{ keybindId: slot.keybindId, actionId }] : [];
-    })
-  );
+  configureMeetingCopilotHotkeyBindings(buildMeetingCopilotHotkeyBindings(meetingCopilotConfig.actions));
   setMeetingCopilotActionStarter((payload) => meetingCopilotActionRunManager.start(payload));
   const meetingCopilotIpc = registerMeetingCopilotIpc({
     ipcMain,
