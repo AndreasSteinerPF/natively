@@ -216,7 +216,10 @@ describe('meeting-copilot action config defaults', () => {
     assert.equal(action.context_mode, 'full_cached');
     assert.equal(action.reasoning?.effort, 'low');
     assert.match(prompt, /answer the INTERVIEWER's pending question directly/i);
-    assert.match(prompt, /2-4 bullets/i);
+    assert.match(prompt, /Treat an interviewer question as pending only until my \[ME\] lines give a substantive answer/i);
+    assert.match(prompt, /If no interviewer question is pending, give the most useful immediate line/i);
+    assert.match(prompt, /Return 1-3 bullets maximum/i);
+    assert.match(prompt, /smallest reasonable assumption/i);
     assert.match(prompt, /Do not advance the system design phase/i);
     assert.match(prompt, /Do not return Step, Goal, Draw, Say, or Key Decisions/i);
   });
@@ -277,8 +280,8 @@ describe('meeting-copilot action config defaults', () => {
   test('default hotkeys avoid macOS screenshot shortcut Command+Shift+3', () => {
     const hotkeys = REQUIRED_ACTION_IDS.map((id) => DEFAULT_MEETING_COPILOT_CONFIG.actions[id].trigger.hotkey);
     assert.deepEqual(hotkeys, [
-      'Command+Shift+1',
-      'Command+Shift+2',
+      'Command+Option+1',
+      'Command+Option+2',
       'Command+Option+3',
     ]);
   });
@@ -428,16 +431,16 @@ describe('meeting-copilot action config validation', () => {
     config.actions['deep-answer'].trigger.hotkey = config.actions['quick-answer'].trigger.hotkey;
     assert.throws(
       () => validateMeetingCopilotConfig(config),
-      /actions\.deep-answer\.trigger\.hotkey must be unique; duplicate Command\+Shift\+1/
+      /actions\.deep-answer\.trigger\.hotkey must be unique; duplicate Command\+Option\+1/
     );
   });
 
   test('normalized duplicate hotkeys are rejected', () => {
     const config = cloneConfig();
-    config.actions['deep-answer'].trigger.hotkey = 'Shift+Command+1';
+    config.actions['deep-answer'].trigger.hotkey = 'Option+Command+1';
     assert.throws(
       () => validateMeetingCopilotConfig(config),
-      /actions\.deep-answer\.trigger\.hotkey must be unique; duplicate Shift\+Command\+1/
+      /actions\.deep-answer\.trigger\.hotkey must be unique; duplicate Option\+Command\+1/
     );
   });
 
@@ -540,7 +543,7 @@ describe('ActionConfigStore', () => {
     const config = await store.load();
 
     assert.equal(config.actions['quick-answer'].label, 'Overridden Quick Answer');
-    assert.equal(config.actions['quick-answer'].trigger.hotkey, 'Command+Shift+1');
+    assert.equal(config.actions['quick-answer'].trigger.hotkey, 'Command+Option+1');
     assert.equal(config.actions['quick-answer'].trigger.slash, '/qa');
     assert.equal(config.workspaces[0].path, '/tmp/repo');
     assert.equal(store.getAction('quick-answer')?.label, 'Overridden Quick Answer');

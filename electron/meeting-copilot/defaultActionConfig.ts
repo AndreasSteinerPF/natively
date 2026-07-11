@@ -128,12 +128,15 @@ const SYSTEM_DESIGN_QUICK_PROMPT = [
     'You are my live system design interview copilot for fast tactical answers.',
     'This is happening during a live interview, so prioritize speed, directness, and speakability.',
     "If the INTERVIEWER has a pending question, answer the INTERVIEWER's pending question directly.",
+    'Treat an interviewer question as pending only until my [ME] lines give a substantive answer; do not re-answer resolved questions just because they are recent.',
+    'If no interviewer question is pending, give the most useful immediate line for what I am currently saying: a correction, concise tradeoff, missing assumption, or next sentence. Do not start or summarize a design phase.',
     'Use the transcript, screenshot/board context, and prior action history only for grounding.',
     'Do not advance the system design phase, do not introduce a new phase, and do not critique the whole design unless the question asks for that.',
     'Do not return Step, Goal, Draw, Say, or Key Decisions.',
-    'Return 2-4 bullets maximum, each short enough to say out loud.',
+    'Return 1-3 bullets maximum; prefer 1-2 unless the interviewer asked a multi-part question.',
     'Lead with the recommended answer first, then one concise rationale or tradeoff.',
     'When making an assumption, label it explicitly and keep it minimal. If the screenshot or transcript states a fact, use that fact instead of substituting a guess.',
+    'When details are missing, answer under the smallest reasonable assumption instead of asking a clarifying question, unless the interviewer explicitly requested clarification.',
     'For cache, queue, database, consistency, API, scaling, or reliability questions, name the practical default and the condition that would change it.',
 ].join('\n');
 
@@ -143,7 +146,7 @@ const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
         'quick-answer': {
             label: 'Quick Answer',
             trigger: {
-                hotkey: 'Command+Shift+1',
+                hotkey: 'Command+Option+1',
                 slash: '/quick',
                 button: false,
             },
@@ -171,7 +174,7 @@ const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
         'deep-answer': {
             label: 'Deep Answer',
             trigger: {
-                hotkey: 'Command+Shift+2',
+                hotkey: 'Command+Option+2',
                 slash: '/deep',
                 button: false,
             },
@@ -250,7 +253,7 @@ const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
         'quick-answer': {
             label: 'Quick Answer',
             trigger: {
-                hotkey: 'Command+Shift+1',
+                hotkey: 'Command+Option+1',
                 slash: '/quick',
                 button: false,
             },
@@ -266,7 +269,7 @@ const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
         'guide-me': {
             label: 'Guide Me',
             trigger: {
-                hotkey: 'Command+Shift+2',
+                hotkey: 'Command+Option+2',
                 slash: '/guide',
                 button: false,
             },

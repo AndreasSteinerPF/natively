@@ -143,8 +143,8 @@ describe('meeting-copilot hotkeys', () => {
         manager.getKeybind('meeting-copilot:tech-solver-parallel'),
       ],
       [
-        'Command+Shift+1',
-        'Command+Shift+2',
+        'Command+Option+1',
+        'Command+Option+2',
         'Command+Option+3',
       ]
     );
@@ -180,7 +180,7 @@ describe('meeting-copilot hotkeys', () => {
     manager.registerGlobalShortcuts();
 
     const shortcutIds = registrations.map((entry) => entry.accelerator);
-    assert.ok(shortcutIds.includes('Command+Shift+1'));
+    assert.ok(shortcutIds.includes('Command+Option+1'));
     assert.ok(shortcutIds.includes('Command+Option+3'));
 
     const meetingCopilotIds = [
@@ -197,7 +197,7 @@ describe('meeting-copilot hotkeys', () => {
   });
 
   test('registration-failed events include the failed Meeting Copilot hotkey id and accelerator', async () => {
-    forcedRegistrationFailures = new Set(['Command+Shift+1']);
+    forcedRegistrationFailures = new Set(['Command+Option+1']);
     const { KeybindManager } = await loadKeybindManagerModule();
     KeybindManager.instance = undefined;
     const manager = KeybindManager.getInstance();
@@ -205,12 +205,12 @@ describe('meeting-copilot hotkeys', () => {
     manager.setMode('launcher');
     manager.registerGlobalShortcuts();
 
-    assert.equal(registrations.some((entry) => entry.accelerator === 'Command+Shift+1'), false);
+    assert.equal(registrations.some((entry) => entry.accelerator === 'Command+Option+1'), false);
     assert.deepEqual(registrationLog[0], {
       channel: 'keybinds:registration-failed',
       payload: {
         id: 'meeting-copilot:quick-answer',
-        accelerator: 'Command+Shift+1',
+        accelerator: 'Command+Option+1',
       },
     });
   });

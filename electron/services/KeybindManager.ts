@@ -34,8 +34,8 @@ export const DEFAULT_KEYBINDS: KeybindConfig[] = [
     { id: 'chat:codeHint', label: 'Get Code Hint', accelerator: 'CommandOrControl+6', isGlobal: true, defaultAccelerator: 'CommandOrControl+6' },
     { id: 'chat:brainstorm', label: 'Brainstorm Approaches', accelerator: 'CommandOrControl+7', isGlobal: true, defaultAccelerator: 'CommandOrControl+7' },
     // Meeting Copilot - Global shortcuts (macOS v1)
-    { id: 'meeting-copilot:quick-answer', label: 'Quick Answer', accelerator: 'Command+Shift+1', isGlobal: true, defaultAccelerator: 'Command+Shift+1' },
-    { id: 'meeting-copilot:deep-answer', label: 'Deep Answer', accelerator: 'Command+Shift+2', isGlobal: true, defaultAccelerator: 'Command+Shift+2' },
+    { id: 'meeting-copilot:quick-answer', label: 'Quick Answer', accelerator: 'Command+Option+1', isGlobal: true, defaultAccelerator: 'Command+Option+1' },
+    { id: 'meeting-copilot:deep-answer', label: 'Deep Answer', accelerator: 'Command+Option+2', isGlobal: true, defaultAccelerator: 'Command+Option+2' },
     { id: 'meeting-copilot:tech-solver-parallel', label: 'Tech Solver: Fast + Deep', accelerator: 'Command+Option+3', isGlobal: true, defaultAccelerator: 'Command+Option+3' },
     // Scroll shortcuts are global so they work in stealth mode without the user
     // having to click the Natively window first (regression fix for issue #233).

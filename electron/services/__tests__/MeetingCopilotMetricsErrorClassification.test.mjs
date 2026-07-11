@@ -19,7 +19,7 @@ describe('meeting-copilot error classification (ActionRunManager)', () => {
           'quick-answer': {
             id: 'quick-answer',
             label: 'Quick Answer',
-            hotkey: 'Command+Shift+1',
+            hotkey: 'Command+Option+1',
             model: 'google/gemini-3.5-flash',
             context_mode: 'recent',
             cache_policy: 'none',
@@ -71,7 +71,7 @@ describe('meeting-copilot error classification (ActionRunManager)', () => {
           'quick-answer': {
             id: 'quick-answer',
             label: 'Quick Answer',
-            hotkey: 'Command+Shift+1',
+            hotkey: 'Command+Option+1',
             model: 'google/gemini-3.5-flash',
             context_mode: 'recent',
             cache_policy: 'none',
@@ -177,7 +177,7 @@ describe('meeting-copilot error classification (ActionRunManager)', () => {
           'quick-answer': {
             id: 'quick-answer',
             label: 'Quick Answer',
-            hotkey: 'Command+Shift+1',
+            hotkey: 'Command+Option+1',
             model: 'google/gemini-3.5-flash',
             context_mode: 'recent',
             cache_policy: 'none',
@@ -227,7 +227,7 @@ describe('meeting-copilot error classification (ActionRunManager)', () => {
           'quick-answer': {
             id: 'quick-answer',
             label: 'Quick Answer',
-            hotkey: 'Command+Shift+1',
+            hotkey: 'Command+Option+1',
             model: 'google/gemini-3.5-flash',
             context_mode: 'recent',
             cache_policy: 'none',

@@ -338,8 +338,8 @@ describe('meeting-copilot ipc', () => {
       getConfig() {
         return {
           actions: [
-            { id: 'guide-me', label: 'Guide Me', hotkey: 'Command+Shift+1' },
-            { id: 'go-deeper', label: 'Go Deeper', hotkey: 'Command+Shift+2' },
+            { id: 'guide-me', label: 'Guide Me', hotkey: 'Command+Option+2' },
+            { id: 'go-deeper', label: 'Go Deeper', hotkey: 'Command+Option+3' },
           ],
         };
       },
@@ -354,8 +354,8 @@ describe('meeting-copilot ipc', () => {
 
     assert.deepEqual(result, {
       actions: [
-        { id: 'guide-me', label: 'Guide Me', hotkey: 'Command+Shift+1' },
-        { id: 'go-deeper', label: 'Go Deeper', hotkey: 'Command+Shift+2' },
+        { id: 'guide-me', label: 'Guide Me', hotkey: 'Command+Option+2' },
+        { id: 'go-deeper', label: 'Go Deeper', hotkey: 'Command+Option+3' },
       ],
     });
   });

@@ -35,7 +35,7 @@ function createConfig() {
     actions: {
       'guide-me': {
         label: 'Guide Me',
-        trigger: { hotkey: 'Command+Shift+1', slash: '/guide', button: false },
+        trigger: { hotkey: 'Command+Option+2', slash: '/guide', button: false },
         model: 'anthropic/claude-opus-4.8',
         context_mode: 'full_cached',
         cache_policy: 'anthropic_explicit_1h',
@@ -44,7 +44,7 @@ function createConfig() {
       },
       'go-deeper': {
         label: 'Go Deeper',
-        trigger: { hotkey: 'Command+Shift+2', slash: '/deeper', button: false },
+        trigger: { hotkey: 'Command+Option+3', slash: '/deeper', button: false },
         model: 'anthropic/claude-opus-4.8',
         context_mode: 'full_cached',
         cache_policy: 'anthropic_explicit_1h',
