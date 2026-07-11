@@ -1,0 +1,3 @@
+[ME]: Okay, APIs are defined now. We have the provider batch ingestion endpoint, the customer usage query by granularity and time range, and an internal reprocess endpoint.
+
+[ME]: I want to move into the high level architecture now. I know we need Kafka or some durable queue, Postgres for raw and aggregates, and maybe Redis on the read path. I want to start with the clearest first diagram.

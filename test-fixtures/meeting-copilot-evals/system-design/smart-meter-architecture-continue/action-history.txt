@@ -1,0 +1,30 @@
+Guide Me
+Step: ADVANCE to Requirements & Scope
+Goal: Establish boundaries for smart-meter ingestion, customer usage queries, tariff-based estimated cost, support inspection, and historical reprocessing.
+Key Decisions: Raw readings are immutable, corrections must be supported, dashboards need low latency, and reprocessing must reuse historical raw data.
+
+Guide Me
+Step: ADVANCE to Capacity & Constraints
+Goal: Size the system around ~580 readings/sec average, ~11.6k/sec burst, 5k dashboard RPS, 5-minute freshness, and p95 300 ms reads.
+Key Decisions: Use a durable buffer for bursts, pre-aggregate dashboard reads, and avoid raw scans on the hot path.
+
+Guide Me
+Step: ADVANCE to Core Entities & Data Model
+Goal: Model Customer, Meter, RawReading, Tariff, DailyAggregate, MonthlyAggregate, and calc_version.
+Key Decisions: RawReading is append-only and the source of truth; aggregates are derived views that can be recomputed.
+
+Guide Me
+Step: ADVANCE to APIs & Access Patterns
+Goal: Define batch ingestion, usage reads, and admin reprocess access patterns.
+Key Decisions: Provider ingest acks after durable enqueue; customer usage reads from aggregates; admin reprocess scans raw by range.
+
+Guide Me
+Step: ADVANCE to High-Level Architecture
+Goal: Start the architecture with the durable ingestion and raw persistence path.
+Do This Live:
+1. Say: "I'll start with the write path: provider data enters through an ingest API, is durably buffered, then written to immutable raw readings."
+Write: `External Provider -> Ingest API -> Kafka readings topic -> Raw Writer -> Postgres raw_readings`
+Why: This covers burst buffering and no accepted reading is silently lost; raw readings remain the source of truth for corrections and reprocessing.
+2. Say: "The API returns 202 only after Kafka confirms the write, and the raw writer commits offsets only after the database insert."
+Write: `202 after Kafka ack; offset commit after raw insert`
+Why: That gives at-least-once delivery with an idempotent raw sink, without needing exactly-once messaging.

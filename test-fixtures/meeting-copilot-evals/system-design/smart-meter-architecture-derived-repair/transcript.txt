@@ -1,0 +1,3 @@
+[ME]: I now have Kafka feeding the Raw Writer and also a separate Aggregation Worker consumer group, and the aggregation worker writes daily and monthly aggregates.
+
+[ME]: Is that clean enough to move on, or should I adjust this diagram before I continue?

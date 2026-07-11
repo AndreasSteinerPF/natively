@@ -1,0 +1,19 @@
+Guide Me
+Step: ADVANCE to Requirements & Scope
+Goal: Establish boundaries for smart-meter ingestion, customer usage queries, tariff-based estimated cost, support inspection, and historical reprocessing.
+Key Decisions: Treat external provider delivery as push-based, keep raw readings immutable for audit/reprocessing, and handle corrections separately from reprocessing jobs.
+
+Guide Me
+Step: ADVANCE to Capacity & Constraints
+Goal: Translate stated scale into design constraints: 50M readings/day (~580/sec average), 20x bursts (~11.6k/sec), 5k dashboard RPS, 5-minute freshness, and 300 ms p95 query latency.
+Key Decisions: Buffer ingestion bursts with Kafka/Kinesis, decouple read and write paths, cache pre-aggregated dashboard views, and partition reading storage by time.
+
+Guide Me
+Step: ADVANCE to Core Entities & Data Model
+Goal: Define an immutable, versioned data model for half-hourly readings, customer-meter mapping, tariff effective-time lookup, and rebuildable usage aggregates.
+Key Decisions: Raw readings are append-only, corrections supersede prior readings by interval/version, tariffs use effective_from/effective_to ranges, and usage aggregates are derived by pipeline version.
+
+Guide Me
+Step: ADVANCE to APIs & Access Patterns
+Goal: Define the provider ingestion API, customer usage read APIs, and admin reprocess API so every requirement has a concrete access pattern.
+Key Decisions: Provider batch ingest returns 202 after durable enqueue, customer reads hit daily/monthly aggregates by range/granularity, and admin reprocess replays immutable raw readings with a new calc_version.

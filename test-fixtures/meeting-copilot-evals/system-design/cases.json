@@ -30,6 +30,30 @@
       "actionHistory": "smart-meter-api-before-architecture/action-history.txt"
     },
     {
+      "id": "smart-meter-architecture-start",
+      "action": "guide-me",
+      "transcript": "smart-meter-architecture-start/transcript.txt",
+      "actionHistory": "smart-meter-architecture-start/action-history.txt"
+    },
+    {
+      "id": "smart-meter-architecture-continue",
+      "action": "guide-me",
+      "transcript": "smart-meter-architecture-continue/transcript.txt",
+      "actionHistory": "smart-meter-architecture-continue/action-history.txt"
+    },
+    {
+      "id": "smart-meter-architecture-partial-repair",
+      "action": "guide-me",
+      "transcript": "smart-meter-architecture-partial-repair/transcript.txt",
+      "actionHistory": "smart-meter-architecture-partial-repair/action-history.txt"
+    },
+    {
+      "id": "smart-meter-architecture-derived-repair",
+      "action": "guide-me",
+      "transcript": "smart-meter-architecture-derived-repair/transcript.txt",
+      "actionHistory": "smart-meter-architecture-derived-repair/action-history.txt"
+    },
+    {
       "id": "smart-meter-quick-eviction-policy",
       "action": "quick-answer",
       "transcript": "smart-meter-quick-eviction-policy/transcript.txt",

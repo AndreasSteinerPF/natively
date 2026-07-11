@@ -219,6 +219,23 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Ground reasoning in screenshot\/transcript facts, scale numbers, constraints, or explicit assumptions/);
   });
 
+  test('system-design guide prompt treats architecture as an incremental diagram phase', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['guide-me'].prompt;
+
+    assert.match(prompt, /High-Level Architecture can take multiple Guide Me calls/i);
+    assert.match(prompt, /one coherent slice of the diagram/i);
+    assert.match(prompt, /core end-to-end paths before reliability notes/i);
+    assert.match(prompt, /Every drawn component must have a labeled upstream and downstream connection/i);
+    assert.match(prompt, /source of truth and update trigger/i);
+    assert.match(prompt, /one write, one read, one late\/corrected event, and one reprocess\/admin event/i);
+    assert.match(prompt, /If any path is missing, floating, or ambiguous about ownership\/order\/source-of-truth, choose REPAIR/i);
+    assert.match(prompt, /ADVANCE can mean advancing to the next architecture slice/i);
+    assert.match(prompt, /silently validate the current diagram slice/i);
+    assert.match(prompt, /do not leave High-Level Architecture unless/i);
+    assert.match(prompt, /reviewed or stress-tested/i);
+  });
+
   test('system-design guide prompt keeps assumptions explicit and minimal', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['guide-me'].prompt;
@@ -266,8 +283,9 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /good enough for the interview/);
     assert.match(prompt, /Verdict/);
     assert.match(prompt, /Fixes/);
-    assert.match(prompt, /Stress Test/);
     assert.match(prompt, /Say/);
+    assert.match(prompt, /Stress Test/);
+    assert.match(prompt, /Return exactly these sections in this order: Verdict, Fixes, Say, Stress Test/);
     assert.match(prompt, /3-5 ranked concrete changes/);
     assert.match(prompt, /live interview/i);
     assert.match(prompt, /skimmable/i);

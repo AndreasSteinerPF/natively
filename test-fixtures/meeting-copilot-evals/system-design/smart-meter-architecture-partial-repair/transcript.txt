@@ -1,0 +1,3 @@
+[ME]: I drew the write path: External Provider to Ingest API, then Kafka, then Ingest Worker, then Postgres raw readings.
+
+[ME]: Looking at it, the diagram feels incomplete, but I am not totally sure what to add before moving on.

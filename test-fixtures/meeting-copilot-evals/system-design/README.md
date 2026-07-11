@@ -35,6 +35,10 @@ Current cases:
 - `smart-meter-capacity`: prior scope completed; should advance to Capacity & Constraints.
 - `smart-meter-data-modeling`: prior scope and capacity completed; should advance to Core Entities & Data Model.
 - `smart-meter-api-before-architecture`: interviewer asks to jump to architecture; should still advance to APIs & Access Patterns.
+- `smart-meter-architecture-start`: APIs are complete; should start High-Level Architecture with one coherent diagram slice, not the entire reliability/deep-dive story.
+- `smart-meter-architecture-continue`: first write-path slice is good; should continue High-Level Architecture with the next coherent slice, not jump to Deep Dives.
+- `smart-meter-architecture-partial-repair`: write path is drawn but read/aggregate/reprocess paths are missing; should REPAIR High-Level Architecture.
+- `smart-meter-architecture-derived-repair`: derived aggregate path has ambiguous source-of-truth/update ordering; should REPAIR rather than advance.
 - `smart-meter-quick-eviction-policy`: targeted pending question; Quick Answer should answer cache eviction directly.
 - `smart-meter-quick-generic-cache-eviction`: targeted pending question where only a generic in-memory cache was stated; Quick Answer should avoid Redis-specific policy names unless framed as examples.
 - `smart-meter-quick-consistency`: targeted pending question; Quick Answer should answer consistency directly.
@@ -47,6 +51,10 @@ Manual review rubric:
 - `smart-meter-capacity`: must compute ~580/s average, ~11.6k/s burst, 5k dashboard RPS, 5-minute freshness, and 300 ms p95.
 - `smart-meter-data-modeling`: must use half-hourly readings, effective-time tariffs, customer/meter mapping, immutable raw data, and derived aggregates.
 - `smart-meter-api-before-architecture`: must resist skipping the fixed flow; expected phase is APIs & Access Patterns, not High-Level Architecture.
+- `smart-meter-architecture-start`: must say `ADVANCE` to High-Level Architecture, cover a focused slice such as write/read core paths, and avoid trying to cram DLQ, replay, cache invalidation, and all failure modes into one response.
+- `smart-meter-architecture-continue`: must remain in High-Level Architecture and continue with the next missing coherent slice, ideally aggregate/read path or reprocess path; must not jump to Deep Dives just because one architecture slice is complete.
+- `smart-meter-architecture-partial-repair`: must say `REPAIR` High-Level Architecture, add missing aggregate/read/reprocess paths, and name source-of-truth/update triggers for derived data.
+- `smart-meter-architecture-derived-repair`: must say `REPAIR` High-Level Architecture and clarify ownership/order between raw readings as source of truth and aggregate updates; acceptable fixes include driving aggregation after raw commit, marking dirty intervals, or making the aggregator own the raw insert before deriving.
 - `smart-meter-quick-eviction-policy`: must answer in a few bullets, mention TTL/invalidation plus LRU or LFU/TinyLFU tradeoff, and avoid Step/Goal/Draw.
 - `smart-meter-quick-generic-cache-eviction`: must say generic LRU/LFU rather than Redis-specific `allkeys-lru` as the primary answer, briefly explain the policy, and include the source-of-truth tradeoff.
 - `smart-meter-quick-consistency`: must answer in a few bullets, use the five-minute freshness fact, distinguish dashboard eventual consistency from durable raw correctness, avoid out-of-scope billing/invoicing examples, and avoid Step/Goal/Draw.

@@ -1,0 +1,5 @@
+[ME]: The write path is now on the board: External Provider to Ingest API, Kafka readings topic, Raw Writer, and Postgres raw_readings.
+
+[ME]: I also noted that the API acks only after Kafka persistence and the raw writer commits offsets only after insert. That seems good for the write side.
+
+[ME]: Next I think I need to continue the architecture rather than deep dive yet.
