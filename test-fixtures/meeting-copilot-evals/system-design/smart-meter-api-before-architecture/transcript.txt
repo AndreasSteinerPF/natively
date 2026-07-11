@@ -1,0 +1,3 @@
+[INTERVIEWER]: Great, can we jump to the big architecture now?
+
+[ME]: We have scoped the requirements, done capacity math, and modeled the core entities. I am not sure whether to define the APIs and access patterns first or go straight to boxes.

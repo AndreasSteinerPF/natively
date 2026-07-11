@@ -24,10 +24,21 @@
       "actionHistory": "smart-meter-data-modeling/action-history.txt"
     },
     {
+      "id": "smart-meter-api-before-architecture",
+      "action": "guide-me",
+      "transcript": "smart-meter-api-before-architecture/transcript.txt",
+      "actionHistory": "smart-meter-api-before-architecture/action-history.txt"
+    },
+    {
       "id": "smart-meter-corrections-deep-dive",
       "action": "go-deeper",
       "transcript": "smart-meter-corrections-deep-dive/transcript.txt",
       "actionHistory": "smart-meter-corrections-deep-dive/action-history.txt"
+    },
+    {
+      "id": "notification-ambiguous-fresh",
+      "action": "guide-me",
+      "transcript": "notification-ambiguous-fresh/transcript.txt"
     }
   ]
 }

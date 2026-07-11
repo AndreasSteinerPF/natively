@@ -1,4 +1,10 @@
 Guide Me
+Step: ADVANCE to Core Entities & Data Model
+Goal: Model half-hourly meter readings, tariff versions, corrections, and usage aggregates so reprocessing stays deterministic.
+Draw: RawReading (append-only), Meter, TariffVersion (effective_from/effective_to), UsageAggregate (derived), and arrows from raw readings + tariffs into aggregate computation.
+Key Decisions: Corrections are new versioned raw records, tariffs are effective-time versioned, and aggregates are rebuildable derived state tagged by pipeline version.
+
+Guide Me
 Step: ADVANCE to High-Level Architecture
 Goal: Establish the core ingestion, processing, storage, and query paths.
 Draw: Provider -> API Gateway -> Kafka -> Ingestion Workers -> Raw Store + Processed Store -> Aggregation -> Query API -> Customer App.

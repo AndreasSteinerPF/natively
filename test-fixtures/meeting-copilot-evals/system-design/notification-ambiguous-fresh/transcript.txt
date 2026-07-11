@@ -1,0 +1,3 @@
+[INTERVIEWER]: Design a notification system.
+
+[ME]: Okay, I will start by clarifying the scope and assumptions before drawing the architecture.
