@@ -50,7 +50,7 @@ Manual review rubric:
 - `smart-meter-api-before-architecture`: must resist skipping the fixed flow; expected phase is APIs & Access Patterns, not High-Level Architecture.
 - `smart-meter-quick-eviction-policy`: must answer in a few bullets, mention TTL/invalidation plus LRU or LFU/TinyLFU tradeoff, and avoid Step/Goal/Draw.
 - `smart-meter-quick-generic-cache-eviction`: must say generic LRU/LFU rather than Redis-specific `allkeys-lru` as the primary answer, briefly explain the policy, and include the source-of-truth tradeoff.
-- `smart-meter-quick-consistency`: must answer in a few bullets, use the five-minute freshness fact, distinguish dashboard eventual consistency from durable raw correctness, and avoid Step/Goal/Draw.
+- `smart-meter-quick-consistency`: must answer in a few bullets, use the five-minute freshness fact, distinguish dashboard eventual consistency from durable raw correctness, avoid out-of-scope billing/invoicing examples, and avoid Step/Goal/Draw.
 - `smart-meter-corrections-deep-dive`: must distinguish point corrections from bulk reprocessing and build on the existing data model/architecture.
 - `notification-ambiguous-fresh`: must ask or state minimal scope assumptions; any scale must be labeled as an assumption, and it must not jump into queues/databases prematurely.
 

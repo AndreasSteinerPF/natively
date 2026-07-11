@@ -2,3 +2,4 @@ Guide Me
 Step: ADVANCE to Core Entities & Data Model
 Goal: Define an immutable, versioned data model for half-hourly readings, customer-meter mapping, tariff effective-time lookup, and rebuildable usage aggregates.
 Key Decisions: Raw readings are append-only, corrections supersede prior readings, tariffs use effective_from/effective_to ranges, and usage aggregates are derived by pipeline version.
+Out of scope: legally binding invoices, collecting payments, and direct physical smart meter communication.
