@@ -275,7 +275,7 @@ describe('meeting-copilot project context packs', () => {
       'custom_context',
       'project_docs_context',
       'pinned_context',
-      'meeting_transcript_so_far',
+      'recent_transcript',
       'code_context',
       'current_action',
     ]);
