@@ -7,6 +7,10 @@ import {
     TranscriptChunk,
 } from './types';
 import { withFreshnessStableInstructions } from './FreshnessPolicy';
+import { DEFAULT_PINNED_CONTEXT_TEMPLATE } from './PinnedContextStore';
+
+const FULL_CACHE_RECENT_TRANSCRIPT_TAIL_CHUNKS = 12;
+const TRANSCRIPT_CACHE_BLOCK_TARGET_CHARS = 8_000;
 
 function toDate(value: string | Date): Date {
     return value instanceof Date ? value : new Date(value);
@@ -24,10 +28,54 @@ function section(
     };
 }
 
+function normalizeOptionalContext(value: string): string {
+    const trimmed = value.trim();
+    return trimmed === DEFAULT_PINNED_CONTEXT_TEMPLATE.trim() ? '' : trimmed;
+}
+
+function parseSpeakerLine(text: string): { speaker?: string; body: string } {
+    const match = text.match(/^\[(ME|INTERVIEWER)\]:\s*(.*)$/s);
+    if (!match) {
+        return { body: text };
+    }
+
+    return {
+        speaker: match[1],
+        body: match[2].trim(),
+    };
+}
+
 function formatTranscript(chunks: TranscriptChunk[]): string {
-    return chunks
-        .map((chunk) => `[${chunk.id} start=${chunk.start_ts} end=${chunk.end_ts}]\n${chunk.text}`)
-        .join('\n\n');
+    const groups: Array<{ key: string; speaker?: string; parts: string[] }> = [];
+
+    for (const chunk of chunks) {
+        const rawText = chunk.text.trim();
+        if (rawText.length === 0) {
+            continue;
+        }
+
+        const parsed = parseSpeakerLine(rawText);
+        const body = parsed.body.trim();
+        if (body.length === 0) {
+            continue;
+        }
+
+        const key = parsed.speaker ?? chunk.source ?? 'transcript';
+        const last = groups.at(-1);
+        if (last?.key === key) {
+            last.parts.push(body);
+            continue;
+        }
+
+        groups.push({ key, speaker: parsed.speaker, parts: [body] });
+    }
+
+    return groups
+        .map((group) => {
+            const text = group.parts.join(' ');
+            return group.speaker ? `[${group.speaker}]: ${text}` : text;
+        })
+        .join('\n');
 }
 
 function selectRecentChunks(
@@ -44,11 +92,52 @@ function selectRecentChunks(
     });
 }
 
+function splitFullCachedTranscript(chunks: TranscriptChunk[]): {
+    cacheableHistory: TranscriptChunk[];
+    recentTail: TranscriptChunk[];
+} {
+    if (chunks.length <= FULL_CACHE_RECENT_TRANSCRIPT_TAIL_CHUNKS) {
+        return {
+            cacheableHistory: [],
+            recentTail: chunks,
+        };
+    }
+
+    return {
+        cacheableHistory: chunks.slice(0, -FULL_CACHE_RECENT_TRANSCRIPT_TAIL_CHUNKS),
+        recentTail: chunks.slice(-FULL_CACHE_RECENT_TRANSCRIPT_TAIL_CHUNKS),
+    };
+}
+
+function splitTranscriptBlocks(content: string, targetChars: number): string[] {
+    const lines = content.split('\n').filter((line) => line.trim().length > 0);
+    const blocks: string[] = [];
+    let current = '';
+
+    for (const line of lines) {
+        const next = current.length === 0 ? line : `${current}\n${line}`;
+        if (current.length > 0 && next.length > targetChars) {
+            blocks.push(current);
+            current = line;
+            continue;
+        }
+        current = next;
+    }
+
+    if (current.length > 0) {
+        blocks.push(current);
+    }
+
+    return blocks;
+}
+
 export function buildMeetingCopilotContext(
     input: BuildMeetingCopilotContextInput
 ): BuiltMeetingCopilotContext {
     const stableInstructions = withFreshnessStableInstructions(input.stableInstructions);
     const actionHistory = input.actionHistory?.trim() ?? '';
+    const customContext = normalizeOptionalContext(input.customContext);
+    const pinnedContext = normalizeOptionalContext(input.pinnedContext);
 
     if (input.mode === 'recent') {
         const transcriptContent = formatTranscript(
@@ -63,7 +152,7 @@ export function buildMeetingCopilotContext(
             mode: 'recent',
             sections: [
                 section('stable_instructions', stableInstructions),
-                section('custom_context', input.customContext),
+                section('custom_context', customContext),
                 // Placed before pinned_context/recent_transcript so it stays part of the
                 // stable, byte-identical prefix across calls within a meeting — required for
                 // Gemini-style implicit prompt caching to hit (only enabled per-branch via
@@ -71,7 +160,7 @@ export function buildMeetingCopilotContext(
                 ...(input.projectDocsContext && input.projectDocsContext.trim().length > 0
                     ? [section('project_docs_context', input.projectDocsContext, { cacheable: true, scope: 'data' })]
                     : []),
-                section('pinned_context', input.pinnedContext),
+                section('pinned_context', pinnedContext),
                 section('recent_transcript', transcriptContent),
                 ...(input.dynamicEvidenceContext && input.dynamicEvidenceContext.trim().length > 0
                     ? [
@@ -91,6 +180,18 @@ export function buildMeetingCopilotContext(
         };
     }
 
+    const fullCachedTranscript = splitFullCachedTranscript(input.snapshot.chunks);
+    const transcriptHistorySections = splitTranscriptBlocks(
+        formatTranscript(fullCachedTranscript.cacheableHistory),
+        TRANSCRIPT_CACHE_BLOCK_TARGET_CHARS
+    ).map((content) =>
+        section('meeting_transcript_so_far', content, {
+            cacheable: true,
+            scope: 'data',
+        })
+    );
+    const recentTranscriptContent = formatTranscript(fullCachedTranscript.recentTail);
+
     return {
         mode: 'full_cached',
         sections: [
@@ -98,7 +199,7 @@ export function buildMeetingCopilotContext(
                 cacheable: true,
                 scope: 'metadata',
             }),
-            section('custom_context', input.customContext, {
+            section('custom_context', customContext, {
                 cacheable: true,
                 scope: 'metadata',
             }),
@@ -110,13 +211,13 @@ export function buildMeetingCopilotContext(
                       }),
                   ]
                 : []),
-            section('pinned_context', input.pinnedContext, {
+            section('pinned_context', pinnedContext, {
                 cacheable: true,
                 scope: 'metadata',
             }),
-            section('meeting_transcript_so_far', formatTranscript(input.snapshot.chunks), {
-                cacheable: true,
-                scope: 'data',
+            ...transcriptHistorySections,
+            section('recent_transcript', recentTranscriptContent, {
+                cacheable: false,
             }),
             section('code_context', input.codeContext ?? '', {
                 cacheable: false,

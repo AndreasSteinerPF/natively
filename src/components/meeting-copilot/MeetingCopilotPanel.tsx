@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, Copy, Square, TriangleAlert } from 'lucide-react';
 
 import {
@@ -55,11 +55,13 @@ export function MeetingCopilotPanel({
     Record<string, MeetingCopilotPaneKey>
   >({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const systemDesignScrollRef = useRef<HTMLDivElement | null>(null);
 
   const visibleRunIds = useMemo(
-    () => (systemDesignMode ? [...state.runIds].reverse() : state.runIds.slice(0, 3)),
+    () => (systemDesignMode ? state.runIds : state.runIds.slice(0, 3)),
     [state.runIds, systemDesignMode]
   );
+  const newestVisibleRunId = visibleRunIds[0] ?? null;
   const visibleRuns = useMemo(
     () => visibleRunIds.map((runId) => state.runsById[runId]).filter(Boolean),
     [state.runsById, visibleRunIds]
@@ -85,6 +87,14 @@ export function MeetingCopilotPanel({
     return () => window.clearTimeout(timer);
   }, [copiedKey]);
 
+  useEffect(() => {
+    if (!systemDesignMode || !newestVisibleRunId || !systemDesignScrollRef.current) {
+      return;
+    }
+
+    systemDesignScrollRef.current.scrollTop = 0;
+  }, [newestVisibleRunId, systemDesignMode]);
+
   if (visibleRuns.length === 0) {
     return null;
   }
@@ -96,6 +106,7 @@ export function MeetingCopilotPanel({
     return (
       <div className="relative no-drag mx-4 mt-2 mb-1">
         <div
+          ref={systemDesignScrollRef}
           data-system-design-scroll="true"
           className="rounded-[14px] border border-white/10 px-3 py-3 overlay-subtle-surface max-h-[280px] overflow-y-auto"
         >

@@ -12,6 +12,12 @@ const { TranscriptBuffer } = await import(
 const { buildMeetingCopilotContext } = await import(
   pathToFileURL(path.join(distRoot, 'ContextBuilder.js')).href
 );
+const { DEFAULT_PINNED_CONTEXT_TEMPLATE } = await import(
+  pathToFileURL(path.join(distRoot, 'PinnedContextStore.js')).href
+);
+const { buildOpenRouterMessages } = await import(
+  pathToFileURL(path.join(distRoot, 'PromptCache.js')).href
+);
 
 function makeBuffer() {
   return new TranscriptBuffer({ meetingId: 'meeting-123' });
@@ -138,14 +144,9 @@ describe('MeetingCopilot ContextBuilder', () => {
       result.sections.map((section) => section.key),
       ['stable_instructions', 'custom_context', 'pinned_context', 'recent_transcript', 'current_action']
     );
-    assert.match(
-      result.sections[3].content,
-      /\[chunk:0002 start=2026-07-03T10:08:00.000Z end=2026-07-03T10:08:20.000Z\]\nWe should simplify the rollout path\./
-    );
-    assert.match(
-      result.sections[3].content,
-      /\[chunk:0003 start=2026-07-03T10:09:10.000Z end=2026-07-03T10:09:30.000Z\]\nThe main risk is migration complexity\./
-    );
+    assert.match(result.sections[3].content, /We should simplify the rollout path\./);
+    assert.match(result.sections[3].content, /The main risk is migration complexity\./);
+    assert.doesNotMatch(result.sections[3].content, /chunk:0002|start=|end=/);
     assert.doesNotMatch(result.sections[3].content, /Kickoff and agenda/);
   });
 
@@ -173,7 +174,7 @@ describe('MeetingCopilot ContextBuilder', () => {
     assert.deepEqual(snapshot.chunks, beforeChunks);
   });
 
-  test('full cached context includes all transcript chunks in stable order with cacheable metadata markers', () => {
+  test('full cached context includes short transcripts as a volatile recent tail', () => {
     const snapshot = seedBuffer().snapshot();
 
     const result = buildMeetingCopilotContext({
@@ -192,7 +193,7 @@ describe('MeetingCopilot ContextBuilder', () => {
         'stable_instructions',
         'custom_context',
         'pinned_context',
-        'meeting_transcript_so_far',
+        'recent_transcript',
         'code_context',
         'current_action',
       ]
@@ -204,17 +205,118 @@ describe('MeetingCopilot ContextBuilder', () => {
     assert.equal(result.sections[1].cache?.scope, 'metadata');
     assert.equal(result.sections[2].cache?.cacheable, true);
     assert.equal(result.sections[2].cache?.scope, 'metadata');
-    assert.equal(result.sections[3].cache?.cacheable, true);
-    assert.equal(result.sections[3].cache?.scope, 'data');
+    assert.equal(result.sections[3].cache?.cacheable, false);
     assert.equal(result.sections[4].cache?.cacheable, false);
     assert.equal(result.sections[5].cache?.cacheable, false);
 
-    assert.match(
-      result.sections[3].content,
-      /^\[chunk:0001 start=2026-07-03T10:00:00.000Z end=2026-07-03T10:00:20.000Z\]\nKickoff and agenda/
+    assert.match(result.sections[3].content, /^Kickoff and agenda/);
+    assert.match(result.sections[3].content, /We should simplify the rollout path\./);
+    assert.match(result.sections[3].content, /The main risk is migration complexity\./);
+  });
+
+  test('transcript formatting is compact and does not leak chunk metadata into the prompt', () => {
+    const snapshot = {
+      meeting_id: 'meeting-123',
+      chunks: [
+        {
+          id: 'chunk:0001',
+          meeting_id: 'meeting-123',
+          start_ts: '2026-07-03T10:00:00.000Z',
+          end_ts: '2026-07-03T10:00:00.000Z',
+          text: '[ME]: First sentence.',
+          source: 'mic',
+        },
+        {
+          id: 'chunk:0002',
+          meeting_id: 'meeting-123',
+          start_ts: '2026-07-03T10:00:03.000Z',
+          end_ts: '2026-07-03T10:00:03.000Z',
+          text: '[ME]: Second sentence.',
+          source: 'mic',
+        },
+        {
+          id: 'chunk:0003',
+          meeting_id: 'meeting-123',
+          start_ts: '2026-07-03T10:00:06.000Z',
+          end_ts: '2026-07-03T10:00:06.000Z',
+          text: '[INTERVIEWER]: Follow-up question.',
+          source: 'system',
+        },
+      ],
+    };
+
+    const result = buildMeetingCopilotContext({
+      mode: 'recent',
+      snapshot,
+      contextMinutes: 10,
+      now: '2026-07-03T10:01:00.000Z',
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: '',
+      currentAction: 'Act.',
+    });
+
+    const transcript = result.sections.find((section) => section.key === 'recent_transcript')?.content ?? '';
+    assert.equal(transcript, '[ME]: First sentence. Second sentence.\n[INTERVIEWER]: Follow-up question.');
+    assert.doesNotMatch(transcript, /chunk:0001|start=|end=/);
+  });
+
+  test('default pinned context template is omitted from model context', () => {
+    const result = buildMeetingCopilotContext({
+      mode: 'full_cached',
+      snapshot: seedBuffer().snapshot(),
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: DEFAULT_PINNED_CONTEXT_TEMPLATE,
+      currentAction: 'Act.',
+    });
+
+    assert.equal(
+      result.sections.some((section) => section.content.includes('Current problem:')),
+      false,
+      'empty pinned context template should not be sent to the model',
     );
-    assert.match(result.sections[3].content, /\n\n\[chunk:0002 start=2026-07-03T10:08:00.000Z end=2026-07-03T10:08:20.000Z\]\n/);
-    assert.match(result.sections[3].content, /\n\n\[chunk:0003 start=2026-07-03T10:09:10.000Z end=2026-07-03T10:09:30.000Z\]\n/);
+  });
+
+  test('full cached context keeps volatile recent transcript outside cacheable history', () => {
+    const chunks = Array.from({ length: 16 }, (_, index) => ({
+      id: `chunk:${String(index + 1).padStart(4, '0')}`,
+      meeting_id: 'meeting-123',
+      start_ts: `2026-07-03T10:${String(index).padStart(2, '0')}:00.000Z`,
+      end_ts: `2026-07-03T10:${String(index).padStart(2, '0')}:00.000Z`,
+      text: `[ME]: Turn ${index + 1}.`,
+      source: 'mic',
+    }));
+
+    const result = buildMeetingCopilotContext({
+      mode: 'full_cached',
+      snapshot: { meeting_id: 'meeting-123', chunks },
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: '',
+      currentAction: 'Act.',
+    });
+
+    const historySections = result.sections.filter((section) => section.key === 'meeting_transcript_so_far');
+    const recentSection = result.sections.find((section) => section.key === 'recent_transcript');
+
+    assert.ok(historySections.length >= 1);
+    assert.equal(historySections.every((section) => section.cache?.cacheable === true), true);
+    assert.equal(recentSection?.cache?.cacheable, false);
+    assert.match(historySections.map((section) => section.content).join('\n'), /Turn 1\./);
+    assert.doesNotMatch(historySections.map((section) => section.content).join('\n'), /Turn 16\./);
+    assert.match(recentSection?.content ?? '', /Turn 16\./);
+
+    const serialized = buildOpenRouterMessages({
+      context: result,
+      cachePolicy: 'anthropic_explicit_1h',
+    });
+    const cacheMarkedBlocks = serialized.messages
+      .flatMap((message) => Array.isArray(message.content) ? message.content : [])
+      .filter((block) => block.type === 'text' && block.cache_control);
+
+    assert.ok(cacheMarkedBlocks.length >= 1);
+    assert.ok(cacheMarkedBlocks.length <= 4, 'Anthropic cache-control supports a small bounded number of breakpoints');
   });
 
   test('freshness guidance stays non-cacheable and adjacent to current_action', () => {
@@ -243,7 +345,7 @@ describe('MeetingCopilot ContextBuilder', () => {
         'stable_instructions',
         'custom_context',
         'pinned_context',
-        'meeting_transcript_so_far',
+        'recent_transcript',
         'code_context',
         'current_action',
         'current_action',

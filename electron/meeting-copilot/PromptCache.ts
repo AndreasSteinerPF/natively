@@ -16,6 +16,7 @@ const CACHEABLE_SECTION_KEYS = new Set<PromptSectionKey>([
     'pinned_context',
     'meeting_transcript_so_far',
 ]);
+const MAX_EXPLICIT_CACHE_CONTROL_BLOCKS = 4;
 
 function cloneBlock(block: OpenRouterContentBlock): OpenRouterContentBlock {
     if (block.type === 'image_url') {
@@ -36,17 +37,15 @@ function cloneMessage(message: OpenRouterMessage): OpenRouterMessage {
     return { ...message };
 }
 
-function buildContentBlock(section: PromptSection, cacheControl?: OpenRouterCacheControl): OpenRouterTextContentBlock {
-    const block: OpenRouterTextContentBlock = {
+function isCacheableSection(section: PromptSection): boolean {
+    return Boolean(section.cache?.cacheable && CACHEABLE_SECTION_KEYS.has(section.key));
+}
+
+function buildContentBlock(section: PromptSection): OpenRouterTextContentBlock {
+    return {
         type: 'text',
         text: section.content,
     };
-
-    if (cacheControl && section.cache?.cacheable && CACHEABLE_SECTION_KEYS.has(section.key)) {
-        block.cache_control = cacheControl;
-    }
-
-    return block;
 }
 
 export function cacheControlForPolicy(policy: CachePolicy): OpenRouterCacheControl | undefined {
@@ -70,7 +69,10 @@ export function buildOpenRouterMessages(input: {
     cache_control_applied: boolean;
 } {
     const cacheControl = cacheControlForPolicy(input.cachePolicy);
-    const systemBlocks: OpenRouterContentBlock[] = [];
+    const systemEntries: Array<{
+        section: PromptSection;
+        block: OpenRouterContentBlock;
+    }> = [];
     const userBlocks: OpenRouterContentBlock[] = [];
 
     for (const section of input.context.sections) {
@@ -93,8 +95,22 @@ export function buildOpenRouterMessages(input: {
             continue;
         }
 
-        systemBlocks.push(buildContentBlock(section, cacheControl));
+        systemEntries.push({
+            section,
+            block: buildContentBlock(section),
+        });
     }
+
+    if (cacheControl) {
+        const cacheableEntries = systemEntries.filter((entry) => isCacheableSection(entry.section));
+        for (const entry of cacheableEntries.slice(-MAX_EXPLICIT_CACHE_CONTROL_BLOCKS)) {
+            if (entry.block.type === 'text') {
+                entry.block.cache_control = cacheControl;
+            }
+        }
+    }
+
+    const systemBlocks = systemEntries.map((entry) => entry.block);
 
     const messages: OpenRouterMessage[] = [];
     if (systemBlocks.length > 0) {
