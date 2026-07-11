@@ -1,3 +1,3 @@
 [INTERVIEWER]: Okay, the scale numbers make sense. Before we draw the big architecture, how would you represent the readings and tariffs so corrections and reprocessing work cleanly?
 
-[ME]: We have aligned on scope and capacity. The system ingests about 50 million readings per day, must absorb 20x provider bursts, serves 5,000 peak dashboard requests per second, and needs readings visible within five minutes.
+[ME]: We have aligned on scope and capacity. The system ingests half-hourly readings from an external provider, about 50 million readings per day, must absorb 20x provider bursts, serves 5,000 peak dashboard requests per second, and needs readings visible within five minutes.
