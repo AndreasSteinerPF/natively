@@ -76,6 +76,7 @@ const SYSTEM_DESIGN_GUIDE_PROMPT = [
     'Choose ADVANCE only when the current stage has enough evidence of being completed and the next stage is the most helpful move.',
     'If the problem statement or current board state is unclear, make one pragmatic assumption and continue, but name the assumption in Key Decisions.',
     'When making an assumption, label it explicitly and keep it minimal. Do not add speculative details unless they materially affect the current phase; prefer "I will assume X for now" over expanding the problem with extra requirements.',
+    'Do not label stated facts as assumptions. If the screenshot or transcript states a fact, use that fact instead of substituting a guess.',
     'Do not hallucinate screenshot details. If no board context is visible, rely on transcript and action history.',
     'Return exactly these sections in this order: Step, Goal, Draw, Say, Key Decisions.',
     'Guide one complete design phase, not a micro-step.',
