@@ -46,7 +46,7 @@ Manual review rubric:
 - `smart-meter-data-modeling`: must use half-hourly readings, effective-time tariffs, customer/meter mapping, immutable raw data, and derived aggregates.
 - `smart-meter-api-before-architecture`: must resist skipping the fixed flow; expected phase is APIs & Access Patterns, not High-Level Architecture.
 - `smart-meter-corrections-deep-dive`: must distinguish point corrections from bulk reprocessing and build on the existing data model/architecture.
-- `notification-ambiguous-fresh`: must ask or state minimal scope assumptions; must not invent scale or jump into queues/databases prematurely.
+- `notification-ambiguous-fresh`: must ask or state minimal scope assumptions; any scale must be labeled as an assumption, and it must not jump into queues/databases prematurely.
 
 To test screenshot grounding, add a real screenshot to a case folder and add it to
 `cases.json`:
