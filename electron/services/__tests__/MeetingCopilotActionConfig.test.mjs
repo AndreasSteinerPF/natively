@@ -180,6 +180,8 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Goal must be one sentence/);
     assert.match(prompt, /Say first, because that is what I read while speaking/i);
     assert.match(prompt, /one short line per field/i);
+    assert.match(prompt, /If a step uses a derived number or capacity estimate, Why must show the quick math/i);
+    assert.match(prompt, /50M\/day ÷ 86,400 ≈ 580\/s; 20x burst ≈ 11\.6k\/s/);
     assert.match(prompt, /Do not return separate Draw, Say, or Key Decisions sections/i);
     assert.match(prompt, /ADVANCE/);
     assert.match(prompt, /REPAIR/);

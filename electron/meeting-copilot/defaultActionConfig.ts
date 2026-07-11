@@ -90,6 +90,7 @@ const SYSTEM_DESIGN_GUIDE_PROMPT = [
     'Put Say first, because that is what I read while speaking. Make Say a concise interview-ready line I can say out loud immediately.',
     'Write is the board action or Excalidraw text/box/arrow to create while saying the line.',
     'Why is the reasoning I need to understand and defend the move, including the requirement, scale number, tradeoff, or risk that justifies it.',
+    'If a step uses a derived number or capacity estimate, Why must show the quick math in speakable form, e.g. `50M/day ÷ 86,400 ≈ 580/s; 20x burst ≈ 11.6k/s`.',
     'Write can be `No board change needed` when the best move is verbal alignment or reasoning.',
     'Do not add redundant board text just to fill Write.',
     'Use Write heavily for entities, APIs, architecture, flows, and deep dives.',
