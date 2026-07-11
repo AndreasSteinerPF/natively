@@ -1,0 +1,3 @@
+[INTERVIEWER]: For corrected readings, do we need strong consistency on the customer dashboard?
+
+[ME]: The system has a five-minute freshness target, and corrected readings trigger recomputation of affected aggregates.

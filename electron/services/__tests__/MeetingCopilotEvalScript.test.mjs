@@ -29,7 +29,7 @@ test('meeting-copilot eval script dry-run assembles transcript and screenshot me
       ),
     );
 
-    const { stdout, stderr } = await execFileAsync(
+    await execFileAsync(
       process.execPath,
       [
         'scripts/meeting-copilot-eval.mjs',
@@ -46,15 +46,47 @@ test('meeting-copilot eval script dry-run assembles transcript and screenshot me
       { cwd: repoRoot, maxBuffer: 2_000_000 },
     );
 
-    assert.match(stdout, /Design a smart-meter ingestion system/);
-    assert.match(stdout, /Guide one complete design phase/);
-    assert.match(stdout, /image_url/);
-    assert.match(stdout, /<base64 omitted>/);
-    assert.match(stderr, /Dry-run messages written to/);
-
     const saved = await fs.readFile(outPath, 'utf8');
     assert.match(saved, /Design a smart-meter ingestion system/);
+    assert.match(saved, /Guide one complete design phase/);
     assert.match(saved, /image_url/);
+    assert.match(saved, /<base64 omitted>/);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('meeting-copilot eval script dry-run supports system-design quick-answer', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'meeting-copilot-eval-quick-'));
+  const transcriptPath = path.join(tempDir, 'transcript.txt');
+  const outPath = path.join(tempDir, 'messages.json');
+
+  try {
+    await fs.writeFile(
+      transcriptPath,
+      '[INTERVIEWER]: What eviction policy would you use for this cache?',
+      'utf8',
+    );
+
+    await execFileAsync(
+      process.execPath,
+      [
+        'scripts/meeting-copilot-eval.mjs',
+        '--dry-run',
+        '--action',
+        'quick-answer',
+        '--transcript',
+        transcriptPath,
+        '--out',
+        outPath,
+      ],
+      { cwd: repoRoot, maxBuffer: 2_000_000 },
+    );
+
+    const saved = await fs.readFile(outPath, 'utf8');
+    assert.match(saved, /What eviction policy would you use/);
+    assert.match(saved, /answer the INTERVIEWER's pending question directly/i);
+    assert.match(saved, /Do not advance the system design phase/);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

@@ -30,6 +30,18 @@
       "actionHistory": "smart-meter-api-before-architecture/action-history.txt"
     },
     {
+      "id": "smart-meter-quick-eviction-policy",
+      "action": "quick-answer",
+      "transcript": "smart-meter-quick-eviction-policy/transcript.txt",
+      "actionHistory": "smart-meter-quick-eviction-policy/action-history.txt"
+    },
+    {
+      "id": "smart-meter-quick-consistency",
+      "action": "quick-answer",
+      "transcript": "smart-meter-quick-consistency/transcript.txt",
+      "actionHistory": "smart-meter-quick-consistency/action-history.txt"
+    },
+    {
       "id": "smart-meter-corrections-deep-dive",
       "action": "go-deeper",
       "transcript": "smart-meter-corrections-deep-dive/transcript.txt",

@@ -1154,11 +1154,12 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const inputClass = `${isLightTheme ? 'focus:ring-black/10' : 'focus:ring-white/10'} overlay-input-surface overlay-input-text`;
   const controlSurfaceClass = 'overlay-control-surface overlay-text-interactive';
   const systemDesignActions = useMemo(
-    () => meetingCopilotConfig?.actions.filter((action) => action.id === 'guide-me' || action.id === 'go-deeper') ?? [],
+    () => meetingCopilotConfig?.actions.filter((action) => action.id === 'quick-answer' || action.id === 'guide-me' || action.id === 'go-deeper') ?? [],
     [meetingCopilotConfig],
   );
   const isSystemDesignMeetingCopilot =
-    systemDesignActions.length === 2 &&
+    systemDesignActions.length === 3 &&
+    systemDesignActions.some((action) => action.id === 'quick-answer') &&
     systemDesignActions.some((action) => action.id === 'guide-me') &&
     systemDesignActions.some((action) => action.id === 'go-deeper');
   const startSystemDesignAction = useCallback(
@@ -6187,7 +6188,9 @@ Provide only the answer, nothing else.`;
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all active:scale-95 duration-200 interaction-base interaction-press whitespace-nowrap shrink-0 ${quickActionClass}`}
                       style={appearance.chipStyle}
                     >
-                      {action.id === 'guide-me' ? (
+                      {action.id === 'quick-answer' ? (
+                        <Zap className="w-3 h-3 opacity-70" />
+                      ) : action.id === 'guide-me' ? (
                         <List className="w-3 h-3 opacity-70" />
                       ) : (
                         <Search className="w-3 h-3 opacity-70" />

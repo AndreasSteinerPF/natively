@@ -145,7 +145,7 @@ describe('meeting-copilot hotkeys', () => {
       [
         'Command+Shift+1',
         'Command+Shift+2',
-        'Command+Shift+3',
+        'Command+Option+3',
       ]
     );
   });
@@ -181,7 +181,7 @@ describe('meeting-copilot hotkeys', () => {
 
     const shortcutIds = registrations.map((entry) => entry.accelerator);
     assert.ok(shortcutIds.includes('Command+Shift+1'));
-    assert.ok(shortcutIds.includes('Command+Shift+3'));
+    assert.ok(shortcutIds.includes('Command+Option+3'));
 
     const meetingCopilotIds = [
       'meeting-copilot:quick-answer',
@@ -263,14 +263,15 @@ describe('meeting-copilot hotkeys', () => {
     setMeetingCopilotActionStarter(null);
   });
 
-  test('system-design preset maps Command+Shift hotkey slots to guide-me and go-deeper', async () => {
+  test('system-design preset maps hotkey slots to quick-answer, guide-me, and go-deeper', async () => {
     const { buildMeetingCopilotHotkeyBindings } = await loadHotkeysModule();
     const { getDefaultMeetingCopilotConfig } = await loadActionConfigModule();
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
 
     assert.deepEqual(buildMeetingCopilotHotkeyBindings(config.actions), [
-      { keybindId: 'meeting-copilot:quick-answer', actionId: 'guide-me' },
-      { keybindId: 'meeting-copilot:deep-answer', actionId: 'go-deeper' },
+      { keybindId: 'meeting-copilot:quick-answer', actionId: 'quick-answer' },
+      { keybindId: 'meeting-copilot:deep-answer', actionId: 'guide-me' },
+      { keybindId: 'meeting-copilot:tech-solver-parallel', actionId: 'go-deeper' },
     ]);
   });
 

@@ -14,7 +14,8 @@ function usage() {
     '  npm run eval:meeting-copilot -- --action guide-me --transcript ./transcript.txt [--screenshot ./board.png]',
     '',
     'Options:',
-    '  --action <guide-me|go-deeper>       Meeting Copilot action to run. Default: guide-me',
+    '  --action <quick-answer|guide-me|go-deeper>',
+    '                                      Meeting Copilot action to run. Default: guide-me',
     '  --transcript <path>                 Transcript text file. Required.',
     '  --screenshot <path>                 Optional screenshot/image path. Can be repeated.',
     '  --model <openrouter-model>          Optional model override.',
@@ -185,8 +186,8 @@ async function main() {
   if (!args.transcript) {
     throw new Error(`--transcript is required\n\n${usage()}`);
   }
-  if (!['guide-me', 'go-deeper'].includes(args.action)) {
-    throw new Error('--action must be guide-me or go-deeper');
+  if (!['quick-answer', 'guide-me', 'go-deeper'].includes(args.action)) {
+    throw new Error('--action must be quick-answer, guide-me, or go-deeper');
   }
 
   const [

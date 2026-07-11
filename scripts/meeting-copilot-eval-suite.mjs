@@ -24,6 +24,7 @@ function usage() {
     'Options:',
     `  --cases <path>       Case manifest. Default: ${DEFAULT_CASES_PATH}`,
     '  --case <id>          Run one case id only. Can be repeated.',
+    '  --action <id>        Run cases for one action only. Can be repeated.',
     '  --models <csv>       Comma-separated OpenRouter model slugs.',
     '  --dry-run            Assemble messages only; do not call the model.',
     '  --out-dir <path>     Output directory. Default: tmp/meeting-copilot-evals/suite-<timestamp>',
@@ -35,6 +36,7 @@ function parseArgs(argv) {
   const args = {
     cases: DEFAULT_CASES_PATH,
     caseIds: [],
+    actionIds: [],
     models: DEFAULT_MODELS,
     dryRun: false,
   };
@@ -56,6 +58,8 @@ function parseArgs(argv) {
       args.cases = next();
     } else if (arg === '--case') {
       args.caseIds.push(next());
+    } else if (arg === '--action') {
+      args.actionIds.push(next());
     } else if (arg === '--models') {
       args.models = next().split(',').map((model) => model.trim()).filter(Boolean);
     } else if (arg === '--dry-run') {
@@ -138,9 +142,13 @@ async function main() {
 
   const { baseDir, cases } = await readManifest(args.cases);
   const selectedCaseIds = new Set(args.caseIds);
-  const selectedCases = selectedCaseIds.size === 0
+  const selectedActionIds = new Set(args.actionIds);
+  const selectedCasesById = selectedCaseIds.size === 0
     ? cases
     : cases.filter((caseDef) => selectedCaseIds.has(caseDef.id));
+  const selectedCases = selectedActionIds.size === 0
+    ? selectedCasesById
+    : selectedCasesById.filter((caseDef) => selectedActionIds.has(caseDef.action ?? 'guide-me'));
 
   if (selectedCases.length === 0) {
     throw new Error('No eval cases selected');

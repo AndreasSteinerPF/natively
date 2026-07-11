@@ -25,6 +25,7 @@ const REQUIRED_ACTION_IDS = [
 ];
 
 const SYSTEM_DESIGN_ACTION_IDS = [
+  'quick-answer',
   'guide-me',
   'go-deeper',
 ];
@@ -80,6 +81,10 @@ const EXPECTED_DEFAULTS = {
     },
   },
   systemDesignActions: {
+    'quick-answer': {
+      model: 'anthropic/claude-fable-5',
+      reasoning: 'low',
+    },
     'guide-me': {
       model: 'anthropic/claude-fable-5',
       reasoning: 'medium',
@@ -125,7 +130,7 @@ describe('meeting-copilot action config defaults', () => {
     assert.doesNotThrow(() => validateMeetingCopilotConfig(cloneConfig()));
   });
 
-  test('system-design preset resolves to exactly guide-me and go-deeper actions', () => {
+  test('system-design preset resolves to exactly quick-answer, guide-me, and go-deeper actions', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     assert.deepEqual(Object.keys(config.actions), SYSTEM_DESIGN_ACTION_IDS);
   });
@@ -134,11 +139,12 @@ describe('meeting-copilot action config defaults', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     assert.equal(config.code_context.enabled, false);
     assert.equal(config.project_context.enabled, false);
+    assert.equal(config.actions['quick-answer'].project_docs_enabled, undefined);
     assert.equal(config.actions['guide-me'].project_docs_enabled, undefined);
     assert.equal(config.actions['go-deeper'].web_search_enabled, undefined);
   });
 
-  test('system-design preset uses Claude Fable 5 for both actions', () => {
+  test('system-design preset uses Claude Fable 5 for all actions', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     for (const actionId of SYSTEM_DESIGN_ACTION_IDS) {
       const action = config.actions[actionId];
@@ -202,6 +208,19 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /expanding the problem with extra requirements/);
   });
 
+  test('system-design quick prompt answers pending questions directly and briefly', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const action = config.actions['quick-answer'];
+    const prompt = action.prompt;
+
+    assert.equal(action.context_mode, 'full_cached');
+    assert.equal(action.reasoning?.effort, 'low');
+    assert.match(prompt, /answer the INTERVIEWER's pending question directly/i);
+    assert.match(prompt, /2-4 bullets/i);
+    assert.match(prompt, /Do not advance the system design phase/i);
+    assert.match(prompt, /Do not return Step, Goal, Draw, Say, or Key Decisions/i);
+  });
+
   test('system-design deeper prompt is phase-aware and skimmable', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['go-deeper'].prompt;
@@ -255,12 +274,12 @@ describe('meeting-copilot action config defaults', () => {
     assert.deepEqual(Object.keys(DEFAULT_MEETING_COPILOT_CONFIG.actions), REQUIRED_ACTION_IDS);
   });
 
-  test('default hotkeys match Command+Shift+1 through Command+Shift+3', () => {
+  test('default hotkeys avoid macOS screenshot shortcut Command+Shift+3', () => {
     const hotkeys = REQUIRED_ACTION_IDS.map((id) => DEFAULT_MEETING_COPILOT_CONFIG.actions[id].trigger.hotkey);
     assert.deepEqual(hotkeys, [
       'Command+Shift+1',
       'Command+Shift+2',
-      'Command+Shift+3',
+      'Command+Option+3',
     ]);
   });
 

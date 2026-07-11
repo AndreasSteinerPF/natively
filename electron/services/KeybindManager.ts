@@ -36,7 +36,7 @@ export const DEFAULT_KEYBINDS: KeybindConfig[] = [
     // Meeting Copilot - Global shortcuts (macOS v1)
     { id: 'meeting-copilot:quick-answer', label: 'Quick Answer', accelerator: 'Command+Shift+1', isGlobal: true, defaultAccelerator: 'Command+Shift+1' },
     { id: 'meeting-copilot:deep-answer', label: 'Deep Answer', accelerator: 'Command+Shift+2', isGlobal: true, defaultAccelerator: 'Command+Shift+2' },
-    { id: 'meeting-copilot:tech-solver-parallel', label: 'Tech Solver: Fast + Deep', accelerator: 'Command+Shift+3', isGlobal: true, defaultAccelerator: 'Command+Shift+3' },
+    { id: 'meeting-copilot:tech-solver-parallel', label: 'Tech Solver: Fast + Deep', accelerator: 'Command+Option+3', isGlobal: true, defaultAccelerator: 'Command+Option+3' },
     // Scroll shortcuts are global so they work in stealth mode without the user
     // having to click the Natively window first (regression fix for issue #233).
     // Each press kicks an inertial scroll loop in the renderer: a single tap

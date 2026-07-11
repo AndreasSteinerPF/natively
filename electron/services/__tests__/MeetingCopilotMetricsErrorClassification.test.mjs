@@ -124,7 +124,7 @@ describe('meeting-copilot error classification (ActionRunManager)', () => {
           'deep-solution': {
             id: 'deep-solution',
             label: 'Deep Solution',
-            hotkey: 'Command+Shift+3',
+            hotkey: 'Command+Option+3',
             model: 'anthropic/claude-opus-4.8-fast',
             context_mode: 'full_cached',
             cache_policy: 'anthropic_explicit_1h',

@@ -124,6 +124,19 @@ const SYSTEM_DESIGN_DEEPER_PROMPT = [
     'Keep the response concise enough to use during a live interview: short structured sections, no essay, no filler, but do not sacrifice depth.',
 ].join('\n');
 
+const SYSTEM_DESIGN_QUICK_PROMPT = [
+    'You are my live system design interview copilot for fast tactical answers.',
+    'This is happening during a live interview, so prioritize speed, directness, and speakability.',
+    "If the INTERVIEWER has a pending question, answer the INTERVIEWER's pending question directly.",
+    'Use the transcript, screenshot/board context, and prior action history only for grounding.',
+    'Do not advance the system design phase, do not introduce a new phase, and do not critique the whole design unless the question asks for that.',
+    'Do not return Step, Goal, Draw, Say, or Key Decisions.',
+    'Return 2-4 bullets maximum, each short enough to say out loud.',
+    'Lead with the recommended answer first, then one concise rationale or tradeoff.',
+    'When making an assumption, label it explicitly and keep it minimal. If the screenshot or transcript states a fact, use that fact instead of substituting a guess.',
+    'For cache, queue, database, consistency, API, scaling, or reliability questions, name the practical default and the condition that would change it.',
+].join('\n');
+
 const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
     openrouter: DEFAULT_OPENROUTER_CONFIG,
     actions: {
@@ -178,7 +191,7 @@ const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
         'tech-solver-parallel': {
             label: 'Tech Solver: Fast + Deep',
             trigger: {
-                hotkey: 'Command+Shift+3',
+                hotkey: 'Command+Option+3',
                 slash: '/tech2',
                 button: false,
             },
@@ -234,10 +247,26 @@ const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
 const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
     openrouter: DEFAULT_OPENROUTER_CONFIG,
     actions: {
+        'quick-answer': {
+            label: 'Quick Answer',
+            trigger: {
+                hotkey: 'Command+Shift+1',
+                slash: '/quick',
+                button: false,
+            },
+            model: 'anthropic/claude-fable-5',
+            context_mode: 'full_cached',
+            cache_policy: 'anthropic_explicit_1h',
+            temperature: 0.2,
+            reasoning: {
+                effort: 'low',
+            },
+            prompt: SYSTEM_DESIGN_QUICK_PROMPT,
+        },
         'guide-me': {
             label: 'Guide Me',
             trigger: {
-                hotkey: 'Command+Shift+1',
+                hotkey: 'Command+Shift+2',
                 slash: '/guide',
                 button: false,
             },
@@ -253,7 +282,7 @@ const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
         'go-deeper': {
             label: 'Go Deeper',
             trigger: {
-                hotkey: 'Command+Shift+2',
+                hotkey: 'Command+Option+3',
                 slash: '/deeper',
                 button: false,
             },

@@ -1,0 +1,4 @@
+Guide Me
+Step: ADVANCE to APIs & Access Patterns
+Goal: Define ingest, query, support inspection, and reprocessing APIs before drawing the full architecture.
+Key Decisions: Customer dashboards read pre-aggregated usage/cost views, Redis may cache hot dashboard responses, and correctness comes from the durable store plus invalidation/recompute.
