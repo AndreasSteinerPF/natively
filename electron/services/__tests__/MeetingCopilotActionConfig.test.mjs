@@ -185,7 +185,7 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Do not return separate Draw, Say, or Key Decisions sections/i);
     assert.match(prompt, /ADVANCE/);
     assert.match(prompt, /REPAIR/);
-    assert.match(prompt, /pragmatic assumption/i);
+    assert.match(prompt, /minimal labeled assumption/i);
     assert.match(prompt, /Do not hallucinate screenshot details/);
     assert.match(prompt, /3-6 numbered live steps/);
     assert.match(prompt, /live interview/i);
@@ -225,10 +225,8 @@ describe('meeting-copilot action config defaults', () => {
 
     assert.match(prompt, /When making an assumption, label it explicitly and keep it minimal/);
     assert.match(prompt, /Do not add speculative details unless they materially affect the current phase/);
-    assert.match(prompt, /For underspecified fresh prompts like "Design a notification system"/);
-    assert.match(prompt, /clarify the core use case, success criteria, and scale before committing to details/);
-    assert.match(prompt, /Do not immediately enumerate every possible trigger, channel, legal constraint, feature, or large scale assumption/);
-    assert.match(prompt, /1-2 clarifying questions plus at most one small labeled assumption/);
+    assert.match(prompt, /If requirements are unexpectedly underspecified, make one minimal labeled assumption and continue/);
+    assert.match(prompt, /do not turn the response into a discovery interview/);
     assert.match(prompt, /Do not label stated facts as assumptions/);
     assert.match(prompt, /If the screenshot or transcript states a fact, use that fact instead of substituting a guess/);
     assert.match(prompt, /expanding the problem with extra requirements/);

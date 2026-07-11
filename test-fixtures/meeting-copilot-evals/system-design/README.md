@@ -39,7 +39,6 @@ Current cases:
 - `smart-meter-quick-generic-cache-eviction`: targeted pending question where only a generic in-memory cache was stated; Quick Answer should avoid Redis-specific policy names unless framed as examples.
 - `smart-meter-quick-consistency`: targeted pending question; Quick Answer should answer consistency directly.
 - `smart-meter-corrections-deep-dive`: interviewer asks a targeted drill-down; uses Go Deeper.
-- `notification-ambiguous-fresh`: intentionally underspecified different-domain prompt; should clarify scope, not draw architecture.
 
 Manual review rubric:
 
@@ -52,7 +51,6 @@ Manual review rubric:
 - `smart-meter-quick-generic-cache-eviction`: must say generic LRU/LFU rather than Redis-specific `allkeys-lru` as the primary answer, briefly explain the policy, and include the source-of-truth tradeoff.
 - `smart-meter-quick-consistency`: must answer in a few bullets, use the five-minute freshness fact, distinguish dashboard eventual consistency from durable raw correctness, avoid out-of-scope billing/invoicing examples, and avoid Step/Goal/Draw.
 - `smart-meter-corrections-deep-dive`: must distinguish point corrections from bulk reprocessing and build on the existing data model/architecture.
-- `notification-ambiguous-fresh`: must ask or state minimal scope assumptions; any scale must be labeled as an assumption, and it must not jump into queues/databases prematurely.
 
 To test screenshot grounding, add a real screenshot to a case folder and add it to
 `cases.json`:
