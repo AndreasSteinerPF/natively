@@ -225,6 +225,10 @@ describe('meeting-copilot action config defaults', () => {
 
     assert.match(prompt, /When making an assumption, label it explicitly and keep it minimal/);
     assert.match(prompt, /Do not add speculative details unless they materially affect the current phase/);
+    assert.match(prompt, /For underspecified fresh prompts like "Design a notification system"/);
+    assert.match(prompt, /clarify the core use case, success criteria, and scale before committing to details/);
+    assert.match(prompt, /Do not immediately enumerate every possible trigger, channel, legal constraint, feature, or large scale assumption/);
+    assert.match(prompt, /1-2 clarifying questions plus at most one small labeled assumption/);
     assert.match(prompt, /Do not label stated facts as assumptions/);
     assert.match(prompt, /If the screenshot or transcript states a fact, use that fact instead of substituting a guess/);
     assert.match(prompt, /expanding the problem with extra requirements/);
