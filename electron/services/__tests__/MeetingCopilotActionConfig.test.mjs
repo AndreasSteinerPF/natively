@@ -191,6 +191,15 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Ground reasoning in screenshot\/transcript facts, scale numbers, constraints, or explicit assumptions/);
   });
 
+  test('system-design guide prompt keeps assumptions explicit and minimal', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['guide-me'].prompt;
+
+    assert.match(prompt, /When making an assumption, label it explicitly and keep it minimal/);
+    assert.match(prompt, /Do not add speculative details unless they materially affect the current phase/);
+    assert.match(prompt, /expanding the problem with extra requirements/);
+  });
+
   test('system-design deeper prompt is phase-aware and skimmable', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['go-deeper'].prompt;
@@ -229,6 +238,15 @@ describe('meeting-copilot action config defaults', () => {
 
     assert.match(prompt, /Do not introduce out-of-scope domains unless the interviewer explicitly asks/);
     assert.match(prompt, /If an out-of-scope edge is relevant, mention it only as a brief boundary note/);
+  });
+
+  test('system-design deeper prompt stress-tests stated constraints before hypotheticals', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['go-deeper'].prompt;
+
+    assert.match(prompt, /Do not expand the problem with new assumptions during stress tests/);
+    assert.match(prompt, /Stress-test the stated design using stated scale and constraints first/);
+    assert.match(prompt, /only introduce hypothetical changes if the interviewer asked for them/);
   });
 
   test('default config includes exactly the three required action IDs', () => {
