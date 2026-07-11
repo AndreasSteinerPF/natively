@@ -1,0 +1,4 @@
+Guide Me
+Step: ADVANCE to APIs & Access Patterns
+Goal: Define ingest, dashboard query, support inspection, and reprocessing APIs.
+Key Decisions: Customer dashboards read pre-aggregated usage/cost views, an in-memory cache may hold hot dashboard responses, and correctness comes from the durable store plus invalidation or recompute.

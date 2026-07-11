@@ -36,6 +36,12 @@
       "actionHistory": "smart-meter-quick-eviction-policy/action-history.txt"
     },
     {
+      "id": "smart-meter-quick-generic-cache-eviction",
+      "action": "quick-answer",
+      "transcript": "smart-meter-quick-generic-cache-eviction/transcript.txt",
+      "actionHistory": "smart-meter-quick-generic-cache-eviction/action-history.txt"
+    },
+    {
       "id": "smart-meter-quick-consistency",
       "action": "quick-answer",
       "transcript": "smart-meter-quick-consistency/transcript.txt",

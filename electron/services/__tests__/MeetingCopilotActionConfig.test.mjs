@@ -220,6 +220,9 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /If no interviewer question is pending, give the most useful immediate line/i);
     assert.match(prompt, /Return 1-3 bullets maximum/i);
     assert.match(prompt, /smallest reasonable assumption/i);
+    assert.match(prompt, /Use implementation-specific terms only when that technology is already stated or clearly implied/i);
+    assert.match(prompt, /briefly unpack what the term means, why it fits, and the main tradeoff/i);
+    assert.match(prompt, /Keep rationale and tradeoffs inside the stated scope/i);
     assert.match(prompt, /Do not advance the system design phase/i);
     assert.match(prompt, /Do not return Step, Goal, Draw, Say, or Key Decisions/i);
   });

@@ -137,6 +137,9 @@ const SYSTEM_DESIGN_QUICK_PROMPT = [
     'Lead with the recommended answer first, then one concise rationale or tradeoff.',
     'When making an assumption, label it explicitly and keep it minimal. If the screenshot or transcript states a fact, use that fact instead of substituting a guess.',
     'When details are missing, answer under the smallest reasonable assumption instead of asking a clarifying question, unless the interviewer explicitly requested clarification.',
+    'Use implementation-specific terms only when that technology is already stated or clearly implied; otherwise use the generic concept and optionally name a concrete example in parentheses.',
+    'When naming a non-obvious mechanism, policy, API, or algorithm, briefly unpack what the term means, why it fits, and the main tradeoff or condition that would change it.',
+    'Keep rationale and tradeoffs inside the stated scope; do not introduce out-of-scope examples unless the interviewer explicitly asks for them.',
     'For cache, queue, database, consistency, API, scaling, or reliability questions, name the practical default and the condition that would change it.',
 ].join('\n');
 
