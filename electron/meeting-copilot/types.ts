@@ -366,6 +366,11 @@ export interface TranscriptContextConfig {
     max_total_chars: number;
 }
 
+export interface ReviewLogConfig {
+    enabled: boolean;
+    max_transcript_chars: number;
+}
+
 export interface ProjectContextMetrics {
     project_context_included?: boolean;
     project_context_pack_names?: string[];
@@ -425,6 +430,7 @@ export interface MeetingCopilotConfig {
     workspaces: WorkspaceConfig[];
     code_context: CodeContextConfig;
     transcript_context: TranscriptContextConfig;
+    review_log: ReviewLogConfig;
     project_context: ProjectContextConfig;
 }
 

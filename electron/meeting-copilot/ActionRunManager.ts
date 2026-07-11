@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { redactForLog } from '../utils/redactForLog';
 import { imageMimeTypeFromPath } from '../utils/curlUtils';
 import { MetricsStore } from './MetricsStore';
+import { MeetingCopilotReviewLogEntry } from './ReviewLogStore';
 import { classifyFreshnessNeed, FRESHNESS_UNVERIFIED_CAVEAT } from './FreshnessPolicy';
 
 import {
@@ -44,6 +45,10 @@ type SessionIdInput = {
     branch?: ActionPane;
 };
 
+type ReviewLogStoreLike = {
+    record: (entry: Omit<MeetingCopilotReviewLogEntry, 'logged_at'>) => void | Promise<void>;
+};
+
 export interface ActionRunManagerOptions {
     config: ActionRunManagerConfig;
     transcriptSnapshotProvider: () => TranscriptSnapshot | Promise<TranscriptSnapshot>;
@@ -62,6 +67,7 @@ export interface ActionRunManagerOptions {
     emitEvent: (event: MeetingCopilotEvent) => void;
     toolLoop?: ActionRunToolLoop;
     metricsStore?: MetricsStore;
+    reviewLogStore?: ReviewLogStoreLike;
     createRunId?: () => string;
     now?: () => number;
     sessionId?: string | ((input: SessionIdInput) => string);
@@ -502,6 +508,7 @@ export class ActionRunManager {
     private readonly emitEvent: ActionRunManagerOptions['emitEvent'];
     private readonly toolLoop?: ActionRunToolLoop;
     private readonly metricsStore?: MetricsStore;
+    private readonly reviewLogStore?: ReviewLogStoreLike;
     private readonly createRunId: () => string;
     private readonly now: () => number;
     private readonly sessionId: ActionRunManagerOptions['sessionId'];
@@ -524,6 +531,7 @@ export class ActionRunManager {
         this.emitEvent = options.emitEvent;
         this.toolLoop = options.toolLoop;
         this.metricsStore = options.metricsStore;
+        this.reviewLogStore = options.reviewLogStore;
         this.createRunId = options.createRunId ?? createDefaultRunId;
         this.now = options.now ?? (() => Date.now());
         this.sessionId = options.sessionId;
@@ -973,6 +981,7 @@ export class ActionRunManager {
             (freshnessDecision.shouldVerify && freshnessEvidence.resultCount === 0)
                 ? FRESHNESS_UNVERIFIED_CAVEAT
                 : undefined;
+        const actionHistoryBefore = this.getSharedActionHistory(input.snapshot.meeting_id);
         const context = this.buildContext({
             mode: input.branchConfig.context_mode,
             snapshot: input.snapshot,
@@ -980,7 +989,7 @@ export class ActionRunManager {
             customContext: this.getCustomContext(),
             projectDocsContext,
             pinnedContext: input.pinnedContext,
-            actionHistory: this.getSharedActionHistory(input.snapshot.meeting_id),
+            actionHistory: actionHistoryBefore,
             currentAction: input.branchConfig.prompt,
             dynamicEvidenceContext: freshnessEvidence.dynamicContextText,
             freshnessGuidance,
@@ -1046,7 +1055,7 @@ export class ActionRunManager {
                 customContext: this.getCustomContext(),
                 projectDocsContext,
                 pinnedContext: input.pinnedContext,
-                actionHistory: this.getSharedActionHistory(input.snapshot.meeting_id),
+                actionHistory: actionHistoryBefore,
                 currentAction: input.branchConfig.prompt,
                 dynamicEvidenceContext: freshnessEvidence.dynamicContextText,
                 freshnessGuidance,
@@ -1142,12 +1151,24 @@ export class ActionRunManager {
                     metrics,
                 });
 
+                const completedText = finalText.trim() || toBoundedString(event.result.content);
+                await this.recordReviewLog({
+                    runId: input.runId,
+                    actionId: input.actionId,
+                    snapshot: input.snapshot,
+                    branch: input.branch === 'main' ? 'single' : input.branch,
+                    finalText: completedText,
+                    actionHistoryBefore,
+                    imagePaths: input.imagePaths ?? [],
+                    metrics,
+                });
+
                 currentBranch.finished = true;
                 return {
                     status: 'success',
                     metrics,
                     warnings: this.mergeWarnings(toolLoopWarnings, event.result.warnings),
-                    finalText: finalText.trim() || toBoundedString(event.result.content),
+                    finalText: completedText,
                 };
             }
 
@@ -1300,4 +1321,70 @@ export class ActionRunManager {
         const deduped = [...new Set(warnings)].filter((warning) => warning.length > 0);
         return deduped.length > 0 ? deduped : undefined;
     }
+
+    private async recordReviewLog(input: {
+        runId: string;
+        actionId: string;
+        snapshot: TranscriptSnapshot;
+        branch: string;
+        finalText: string;
+        actionHistoryBefore: string;
+        imagePaths: string[];
+        metrics: LlmCallMetrics;
+    }): Promise<void> {
+        if (!this.reviewLogStore) {
+            return;
+        }
+        try {
+            await this.reviewLogStore.record({
+                type: 'action_completed',
+                meeting_id: input.snapshot.meeting_id,
+                run_id: input.runId,
+                action_id: input.actionId,
+                branch: input.branch,
+                final_text: input.finalText,
+                transcript_snapshot: trimTranscriptSnapshot(
+                    input.snapshot,
+                    reviewLogMaxTranscriptChars(this.config)
+                ),
+                action_history_before: input.actionHistoryBefore,
+                image_paths: input.imagePaths,
+                metrics: input.metrics,
+            });
+        } catch (error: unknown) {
+            console.warn(
+                'Meeting Copilot review log write failed:',
+                error instanceof Error ? error.message : String(error)
+            );
+        }
+    }
+}
+
+function reviewLogMaxTranscriptChars(config: ActionRunManagerConfig): number {
+    if ('review_log' in config && typeof config.review_log?.max_transcript_chars === 'number') {
+        return config.review_log.max_transcript_chars;
+    }
+    return 80_000;
+}
+
+function trimTranscriptSnapshot(snapshot: TranscriptSnapshot, maxChars: number): TranscriptSnapshot {
+    let remaining = Math.max(0, maxChars);
+    const chunks: TranscriptSnapshot['chunks'] = [];
+
+    for (let index = snapshot.chunks.length - 1; index >= 0; index -= 1) {
+        const chunk = snapshot.chunks[index];
+        if (remaining <= 0) {
+            break;
+        }
+        const text = chunk.text.length <= remaining
+            ? chunk.text
+            : chunk.text.slice(chunk.text.length - remaining);
+        remaining -= text.length;
+        chunks.unshift({ ...chunk, text });
+    }
+
+    return {
+        meeting_id: snapshot.meeting_id,
+        chunks,
+    };
 }

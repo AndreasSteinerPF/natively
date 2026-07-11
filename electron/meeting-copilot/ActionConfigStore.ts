@@ -94,6 +94,7 @@ export function validateMeetingCopilotConfig(value: unknown): MeetingCopilotConf
     const workspaces = validateWorkspaces(config.workspaces, 'workspaces');
     const codeContext = validateCodeContext(config.code_context, 'code_context');
     const transcriptContext = validateTranscriptContext(config.transcript_context, 'transcript_context');
+    const reviewLog = validateReviewLog(config.review_log, 'review_log');
     const projectContext = validateProjectContext(config.project_context, 'project_context');
 
     return {
@@ -102,6 +103,7 @@ export function validateMeetingCopilotConfig(value: unknown): MeetingCopilotConf
         workspaces,
         code_context: codeContext,
         transcript_context: transcriptContext,
+        review_log: reviewLog,
         project_context: projectContext,
     };
 }
@@ -374,6 +376,22 @@ function validateTranscriptContext(value: unknown, pathName: string) {
 
     return {
         max_total_chars: requirePositiveInteger(value.max_total_chars, `${pathName}.max_total_chars`),
+    };
+}
+
+function validateReviewLog(value: unknown, pathName: string) {
+    assertObject(value, pathName);
+
+    if (typeof value.enabled !== 'boolean') {
+        throw new Error(`${pathName}.enabled must be a boolean`);
+    }
+
+    return {
+        enabled: value.enabled,
+        max_transcript_chars: requirePositiveInteger(
+            value.max_transcript_chars,
+            `${pathName}.max_transcript_chars`
+        ),
     };
 }
 

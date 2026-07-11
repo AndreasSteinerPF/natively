@@ -265,6 +265,69 @@ describe('meeting-copilot action runner', () => {
     );
   });
 
+  test('records review log entries with transcript snapshot, response text, and metrics when enabled', async () => {
+    const snapshot = createSnapshot();
+    const records = [];
+    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const imagePath = path.join(os.tmpdir(), `meeting-copilot-review-board-${Date.now()}.png`);
+    fs.writeFileSync(imagePath, pngBytes);
+    const manager = new ActionRunManager({
+      config: cloneConfig(),
+      transcriptSnapshotProvider: () => snapshot,
+      buildContext: buildMeetingCopilotContext,
+      buildMessages: buildOpenRouterMessages,
+      openRouterClient: {
+        streamChatCompletion: async function* () {
+          yield { type: 'token', token: 'Review' };
+          yield { type: 'token', token: ' me' };
+          yield {
+            type: 'done',
+            result: {
+              content: 'Review me',
+              raw: {},
+              warnings: [],
+              usage: {
+                prompt_tokens: 20,
+                completion_tokens: 5,
+                total_tokens: 25,
+              },
+              metrics: {
+                prompt_tokens: 20,
+                completion_tokens: 5,
+                total_tokens: 25,
+              },
+            },
+          };
+        },
+      },
+      emitEvent: () => {},
+      createRunId: () => 'run-review-001',
+      now: createClock([100, 120, 180]),
+      reviewLogStore: {
+        record(entry) {
+          records.push(entry);
+        },
+      },
+    });
+
+    try {
+      await manager.start({ actionId: 'quick-answer', imagePaths: [imagePath] });
+    } finally {
+      fs.rmSync(imagePath, { force: true });
+    }
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0].type, 'action_completed');
+    assert.equal(records[0].run_id, 'run-review-001');
+    assert.equal(records[0].meeting_id, snapshot.meeting_id);
+    assert.equal(records[0].action_id, 'quick-answer');
+    assert.equal(records[0].final_text, 'Review me');
+    assert.deepEqual(records[0].transcript_snapshot, snapshot);
+    assert.deepEqual(records[0].image_paths, [imagePath]);
+    assert.equal(records[0].metrics.total_tokens, 25);
+    assert.equal(records[0].action_history_before, '');
+  });
+
   test('action start attaches screenshot paths as image_url content blocks on the user message', async () => {
     const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
     const imagePath = path.join(os.tmpdir(), `meeting-copilot-board-${Date.now()}.png`);

@@ -38,6 +38,7 @@ import { registerMeetingCopilotIpc } from './meeting-copilot/ipc';
 import { MetricsStore } from './meeting-copilot/MetricsStore';
 import { FreshnessTools } from './meeting-copilot/FreshnessTools';
 import { OpenRouterClient } from './meeting-copilot/OpenRouterClient';
+import { ReviewLogStore } from './meeting-copilot/ReviewLogStore';
 import { ToolLoop } from './meeting-copilot/ToolLoop';
 import {
   DEFAULT_PINNED_CONTEXT_TEMPLATE,
@@ -252,6 +253,11 @@ export function initializeIpcHandlers(appState: AppState): void {
     codeTools,
   });
   const metricsStore = new MetricsStore();
+  const reviewLogStore = meetingCopilotConfig.review_log.enabled
+    ? new ReviewLogStore({
+        baseDir: path.join(app.getPath('userData'), 'meeting-copilot', 'review-logs'),
+      })
+    : undefined;
   const projectContextStore = new ProjectContextStore(meetingCopilotConfig.project_context, {
     workspaceNames: meetingCopilotConfig.workspaces.map((workspace) => workspace.name),
   });
@@ -276,6 +282,7 @@ export function initializeIpcHandlers(appState: AppState): void {
     emitEvent: (event) => emitMeetingCopilotEvent(event),
     toolLoop,
     metricsStore,
+    reviewLogStore,
     getStableInstructions: () => getMeetingCopilotStableInstructions(meetingCopilotConfig),
     freshnessTools,
     hasFreshnessTools: hasMeetingCopilotFreshnessTools,

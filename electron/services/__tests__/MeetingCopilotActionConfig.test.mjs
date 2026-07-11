@@ -100,6 +100,10 @@ const EXPECTED_DEFAULTS = {
   transcript_context: {
     max_total_chars: 24000,
   },
+  review_log: {
+    enabled: false,
+    max_transcript_chars: 80000,
+  },
 };
 
 let tempRoot = '';
@@ -402,6 +406,10 @@ describe('meeting-copilot action config defaults', () => {
     );
   });
 
+  test('review logging is disabled by default with a bounded transcript cap', () => {
+    assert.deepEqual(DEFAULT_MEETING_COPILOT_CONFIG.review_log, EXPECTED_DEFAULTS.review_log);
+  });
+
   test('config file can select the system-design preset manually', async () => {
     const dir = writeOverride('system-design-preset', { preset: 'system-design-interview' });
     const store = new ActionConfigStore({ configDir: dir });
@@ -506,6 +514,22 @@ describe('meeting-copilot action config validation', () => {
     assert.throws(
       () => validateMeetingCopilotConfig(config),
       /transcript_context\.max_total_chars must be a positive integer/
+    );
+  });
+
+  test('invalid review log config is rejected', () => {
+    const config = cloneConfig();
+    config.review_log.enabled = 'yes';
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /review_log\.enabled must be a boolean/
+    );
+
+    config.review_log.enabled = true;
+    config.review_log.max_transcript_chars = 0;
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /review_log\.max_transcript_chars must be a positive integer/
     );
   });
 });

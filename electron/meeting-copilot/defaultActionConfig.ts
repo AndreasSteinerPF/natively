@@ -242,6 +242,10 @@ const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
     transcript_context: {
         max_total_chars: 24_000,
     },
+    review_log: {
+        enabled: false,
+        max_transcript_chars: 80_000,
+    },
     project_context: {
         enabled: false,
         max_docs_chars_per_pack: 20_000,
@@ -312,6 +316,10 @@ const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
     },
     transcript_context: {
         max_total_chars: 24_000,
+    },
+    review_log: {
+        enabled: false,
+        max_transcript_chars: 80_000,
     },
     project_context: {
         enabled: false,
