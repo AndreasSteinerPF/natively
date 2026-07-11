@@ -172,14 +172,20 @@ describe('meeting-copilot action config defaults', () => {
     const prompt = config.actions['guide-me'].prompt;
     assert.match(prompt, /Step/);
     assert.match(prompt, /Goal/);
-    assert.match(prompt, /Draw/);
-    assert.match(prompt, /Say/);
-    assert.match(prompt, /Key Decisions/);
+    assert.match(prompt, /Do This Live/);
+    assert.match(prompt, /Watch For/);
+    assert.match(prompt, /Say:/);
+    assert.match(prompt, /Write:/);
+    assert.match(prompt, /Why:/);
+    assert.match(prompt, /Goal must be one sentence/);
+    assert.match(prompt, /Say first, because that is what I read while speaking/i);
+    assert.match(prompt, /one short line per field/i);
+    assert.match(prompt, /Do not return separate Draw, Say, or Key Decisions sections/i);
     assert.match(prompt, /ADVANCE/);
     assert.match(prompt, /REPAIR/);
     assert.match(prompt, /pragmatic assumption/i);
     assert.match(prompt, /Do not hallucinate screenshot details/);
-    assert.match(prompt, /8-14 bullets/);
+    assert.match(prompt, /3-6 numbered live steps/);
     assert.match(prompt, /live interview/i);
     assert.match(prompt, /skimmable/i);
   });
@@ -201,12 +207,13 @@ describe('meeting-copilot action config defaults', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['guide-me'].prompt;
 
-    assert.match(prompt, /Draw can be `No board change needed yet`/);
-    assert.match(prompt, /Do not add redundant scope text just to fill Draw/);
-    assert.match(prompt, /Use Draw heavily for entities, APIs, architecture, flows, and deep dives/);
+    assert.match(prompt, /Write can be `No board change needed`/);
+    assert.match(prompt, /Do not add redundant board text just to fill Write/);
+    assert.match(prompt, /Use Write heavily for entities, APIs, architecture, flows, and deep dives/);
     assert.match(prompt, /The interview is judged primarily on reasoning, tradeoffs, and grounded decision-making/);
-    assert.match(prompt, /Key Decisions must explain why the choice fits the stated requirements/);
-    assert.match(prompt, /name the tradeoff or risk it accepts/);
+    assert.match(prompt, /Each Why must explain the reasoning or evidence behind the step/);
+    assert.match(prompt, /across the phase, include the main tradeoff, risk, scale number, or constraint/);
+    assert.match(prompt, /Watch For should contain 1-3 short reminders/);
     assert.match(prompt, /Ground reasoning in screenshot\/transcript facts, scale numbers, constraints, or explicit assumptions/);
   });
 
