@@ -11,6 +11,7 @@ const distRoot = path.resolve(repoRoot, 'dist-electron/electron/meeting-copilot'
 const {
   DEFAULT_MEETING_COPILOT_CONFIG,
   getDefaultMeetingCopilotConfig,
+  getMeetingCopilotStableInstructions,
 } = await import(
   pathToFileURL(path.join(distRoot, 'defaultActionConfig.js')).href
 );
@@ -146,6 +147,14 @@ describe('meeting-copilot action config defaults', () => {
     assert.equal(config.actions['quick-answer'].project_docs_enabled, undefined);
     assert.equal(config.actions['guide-me'].project_docs_enabled, undefined);
     assert.equal(config.actions['go-deeper'].web_search_enabled, undefined);
+  });
+
+  test('system-design stable instructions describe compact overlay rendering constraints', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const stableInstructions = getMeetingCopilotStableInstructions(config);
+    assert.match(stableInstructions, /compact live overlay/i);
+    assert.match(stableInstructions, /plain text and basic Markdown only/i);
+    assert.match(stableInstructions, /Do not use tables, Mermaid, charts, HTML, images, or code fences/i);
   });
 
   test('system-design preset uses Claude Fable 5 for all actions', () => {

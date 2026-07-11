@@ -42,6 +42,10 @@ export const SYSTEM_DESIGN_MEETING_COPILOT_STABLE_INSTRUCTIONS = [
     'Do not import project docs, repo details, company/domain-specific names, or prior problem details from any other source.',
     'If no screenshot/problem statement is available, say the problem is unclear and make only a generic placeholder assumption.',
     'If prior action history describes a different problem, ignore it and restart from the current screenshot/problem.',
+    '',
+    'Output is rendered in a compact live overlay that supports plain text and basic Markdown only.',
+    'Do not use tables, Mermaid, charts, HTML, images, or code fences unless explicitly requested.',
+    'Prefer short headings and bullets that remain readable in a narrow scrollable panel.',
 ].join('\n');
 
 export function getMeetingCopilotStableInstructions(config: MeetingCopilotConfig): string {
