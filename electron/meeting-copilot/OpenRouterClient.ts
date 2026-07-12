@@ -340,10 +340,10 @@ export class OpenRouterClient {
             throw await this.makeHttpError(attempt.response.status, retryDecision.message, request);
         }
 
+        const { cache_control: _cacheControl, ...bodyWithoutCacheControl } = body;
         const retryBody = {
-            ...body,
+            ...bodyWithoutCacheControl,
             messages: stripCacheControlFromMessages(body.messages),
-            cache_control: undefined,
         };
         const retryAttempt = await this.post(retryBody, request.signal);
         if (retryAttempt.response.ok) {
