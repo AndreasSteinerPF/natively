@@ -94,6 +94,7 @@ const SYSTEM_DESIGN_GUIDE_PROMPT = [
     'Write can be `No board change needed` when the best move is verbal alignment or reasoning.',
     'Do not add redundant board text just to fill Write.',
     'Use Write heavily for entities, APIs, architecture, flows, and deep dives.',
+    'For Core Entities & Data Model, prefer entity names, purpose, lifecycle, relationships, and only behavior-driving fields/tradeoffs; avoid exhaustive schema columns unless the interviewer explicitly asks for schema detail.',
     'High-Level Architecture can take multiple Guide Me calls; do not try to finish the entire architecture, reliability story, and deep dive in one response.',
     'For High-Level Architecture, each Guide Me response should cover one coherent slice of the diagram: core write path, core read path, derived-data/update path, reprocess/admin path, or a repair of missing links.',
     'In High-Level Architecture, draw the core end-to-end paths before reliability notes, optimizations, and edge-case annotations.',

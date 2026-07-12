@@ -10,6 +10,7 @@ import {
     OpenRouterUsage,
 } from './types';
 import {
+    cacheControlForPolicy,
     shouldRetryWithoutCacheControl,
     stripCacheControlFromMessages,
 } from './PromptCache';
@@ -37,6 +38,7 @@ type ProviderPayload = {
     plugins?: unknown[];
     reasoning?: OpenRouterChatCompletionRequest['reasoning'];
     session_id?: string;
+    cache_control?: OpenRouterChatCompletionRequest['cache_control'];
 };
 
 const DEFAULT_API_KEY_ENV = 'OPENROUTER_API_KEY';
@@ -168,8 +170,12 @@ function toRetryDecision(status: number, message: string): RetryDecision {
     };
 }
 
-function hasCacheControl(messages: OpenRouterMessage[]): boolean {
-    return messages.some((message) => {
+function hasCacheControl(body: ProviderPayload): boolean {
+    if (body.cache_control !== undefined) {
+        return true;
+    }
+
+    return body.messages.some((message) => {
         if (!Array.isArray(message.content)) {
             return false;
         }
@@ -330,13 +336,14 @@ export class OpenRouterClient {
         }
 
         const retryDecision = await this.readRetryDecision(attempt.response);
-        if (!retryDecision.retry || !hasCacheControl(body.messages)) {
+        if (!retryDecision.retry || !hasCacheControl(body)) {
             throw await this.makeHttpError(attempt.response.status, retryDecision.message, request);
         }
 
         const retryBody = {
             ...body,
             messages: stripCacheControlFromMessages(body.messages),
+            cache_control: undefined,
         };
         const retryAttempt = await this.post(retryBody, request.signal);
         if (retryAttempt.response.ok) {
@@ -380,6 +387,7 @@ export class OpenRouterClient {
             plugins: request.plugins,
             reasoning: request.reasoning,
             session_id: request.session_id,
+            cache_control: request.cache_policy ? cacheControlForPolicy(request.cache_policy) : undefined,
         };
     }
 

@@ -178,6 +178,44 @@ describe('meeting-copilot openrouter transport', () => {
     assert.equal(result.metrics.cache_write_tokens, 1);
   });
 
+  test('Anthropic cache policy posts top-level cache_control for OpenRouter automatic caching', async () => {
+    let postedBody;
+    const client = new OpenRouterClient({
+      config: {
+        base_url: 'https://openrouter.ai/api/v1',
+        api_key_env: TEST_OPENROUTER_ENV,
+      },
+      fetch: async (url, init) => {
+        postedBody = JSON.parse(init.body);
+        return jsonResponse({ choices: [{ message: { content: 'cached ok' } }] });
+      },
+    });
+
+    await client.createChatCompletion({
+      model: 'anthropic/claude-fable-5',
+      messages: [
+        {
+          role: 'system',
+          content: [
+            {
+              type: 'text',
+              text: 'Stable instructions',
+              cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+          ],
+        },
+        { role: 'user', content: 'Continue' },
+      ],
+      max_tokens: 64,
+      temperature: 0.2,
+      stream: false,
+      cache_policy: 'anthropic_explicit_1h',
+    });
+
+    assert.deepEqual(postedBody.cache_control, { type: 'ephemeral', ttl: '1h' });
+    assert.equal(postedBody.messages[0].content[0].cache_control.ttl, '1h');
+  });
+
   test('non-streaming chat preserves tool serialization, tool_choice auto, reasoning, and tool_calls in the result', async () => {
     const fetchCalls = [];
     const client = new OpenRouterClient({
@@ -349,6 +387,7 @@ describe('meeting-copilot openrouter transport', () => {
     });
 
     assert.equal(callCount, 2);
+    assert.equal(secondBody.cache_control, undefined);
     assert.equal(secondBody.messages[0].content[0].cache_control, undefined);
     assert.equal(result.warnings.includes('cache_control_disabled_after_provider_rejection'), true);
   });

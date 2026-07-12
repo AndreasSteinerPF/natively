@@ -212,6 +212,8 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Write can be `No board change needed`/);
     assert.match(prompt, /Do not add redundant board text just to fill Write/);
     assert.match(prompt, /Use Write heavily for entities, APIs, architecture, flows, and deep dives/);
+    assert.match(prompt, /For Core Entities & Data Model, prefer entity names, purpose, lifecycle, relationships, and only behavior-driving fields\/tradeoffs/);
+    assert.match(prompt, /avoid exhaustive schema columns unless the interviewer explicitly asks for schema detail/);
     assert.match(prompt, /The interview is judged primarily on reasoning, tradeoffs, and grounded decision-making/);
     assert.match(prompt, /Each Why must explain the reasoning or evidence behind the step/);
     assert.match(prompt, /across the phase, include the main tradeoff, risk, scale number, or constraint/);
