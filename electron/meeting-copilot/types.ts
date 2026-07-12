@@ -248,7 +248,6 @@ export interface OpenRouterChatCompletionRequest {
     stream: boolean;
     session_id?: string;
     cache_policy?: CachePolicy;
-    cache_control?: OpenRouterCacheControl;
     signal?: AbortSignal;
 }
 

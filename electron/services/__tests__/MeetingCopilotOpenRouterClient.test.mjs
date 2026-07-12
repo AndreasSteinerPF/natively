@@ -178,7 +178,7 @@ describe('meeting-copilot openrouter transport', () => {
     assert.equal(result.metrics.cache_write_tokens, 1);
   });
 
-  test('Anthropic cache policy posts top-level cache_control for OpenRouter automatic caching', async () => {
+  test('Anthropic cache policy relies on explicit content-block cache_control only', async () => {
     let postedBody;
     const client = new OpenRouterClient({
       config: {
@@ -212,7 +212,7 @@ describe('meeting-copilot openrouter transport', () => {
       cache_policy: 'anthropic_explicit_1h',
     });
 
-    assert.deepEqual(postedBody.cache_control, { type: 'ephemeral', ttl: '1h' });
+    assert.equal(postedBody.cache_control, undefined);
     assert.equal(postedBody.messages[0].content[0].cache_control.ttl, '1h');
   });
 

@@ -301,7 +301,8 @@ describe('MeetingCopilot ContextBuilder', () => {
     const recentSection = result.sections.find((section) => section.key === 'recent_transcript');
 
     assert.ok(historySections.length >= 1);
-    assert.equal(historySections.every((section) => section.cache?.cacheable === true), true);
+    assert.equal(historySections.at(-1)?.cache?.cacheable, false);
+    assert.equal(historySections.slice(0, -1).every((section) => section.cache?.cacheable === true), true);
     assert.equal(recentSection?.cache?.cacheable, false);
     assert.match(historySections.map((section) => section.content).join('\n'), /Turn 1\./);
     assert.doesNotMatch(historySections.map((section) => section.content).join('\n'), /Turn 16\./);

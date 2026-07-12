@@ -181,12 +181,13 @@ export function buildMeetingCopilotContext(
     }
 
     const fullCachedTranscript = splitFullCachedTranscript(input.snapshot.chunks);
-    const transcriptHistorySections = splitTranscriptBlocks(
+    const transcriptHistoryBlocks = splitTranscriptBlocks(
         formatTranscript(fullCachedTranscript.cacheableHistory),
         TRANSCRIPT_CACHE_BLOCK_TARGET_CHARS
-    ).map((content) =>
+    );
+    const transcriptHistorySections = transcriptHistoryBlocks.map((content, index) =>
         section('meeting_transcript_so_far', content, {
-            cacheable: true,
+            cacheable: index < transcriptHistoryBlocks.length - 1,
             scope: 'data',
         })
     );
