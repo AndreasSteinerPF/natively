@@ -223,6 +223,10 @@ export function buildMeetingCopilotContext(
             section('code_context', input.codeContext ?? '', {
                 cacheable: false,
             }),
+            section('action_instructions', input.currentAction, {
+                cacheable: true,
+                scope: 'metadata',
+            }),
             ...(input.dynamicEvidenceContext && input.dynamicEvidenceContext.trim().length > 0
                 ? [
                       section('dynamic_evidence_context', input.dynamicEvidenceContext, {
@@ -233,7 +237,7 @@ export function buildMeetingCopilotContext(
             ...(actionHistory.length > 0
                 ? [section('action_history', actionHistory, { cacheable: false })]
                 : []),
-            section('current_action', input.currentAction, {
+            section('current_action', 'Apply the action instructions to the current meeting context.', {
                 cacheable: false,
             }),
             ...(input.freshnessGuidance && input.freshnessGuidance.trim().length > 0

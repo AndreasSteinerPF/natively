@@ -195,6 +195,7 @@ describe('MeetingCopilot ContextBuilder', () => {
         'pinned_context',
         'recent_transcript',
         'code_context',
+        'action_instructions',
         'current_action',
       ]
     );
@@ -207,7 +208,11 @@ describe('MeetingCopilot ContextBuilder', () => {
     assert.equal(result.sections[2].cache?.scope, 'metadata');
     assert.equal(result.sections[3].cache?.cacheable, false);
     assert.equal(result.sections[4].cache?.cacheable, false);
-    assert.equal(result.sections[5].cache?.cacheable, false);
+    assert.equal(result.sections[5].cache?.cacheable, true);
+    assert.equal(result.sections[5].cache?.scope, 'metadata');
+    assert.equal(result.sections[6].cache?.cacheable, false);
+    assert.equal(result.sections[5].content, 'Propose the best solution with tradeoffs.');
+    assert.equal(result.sections[6].content, 'Apply the action instructions to the current meeting context.');
 
     assert.match(result.sections[3].content, /^Kickoff and agenda/);
     assert.match(result.sections[3].content, /We should simplify the rollout path\./);
@@ -320,6 +325,32 @@ describe('MeetingCopilot ContextBuilder', () => {
     assert.ok(cacheMarkedBlocks.length <= 4, 'Anthropic cache-control supports a small bounded number of breakpoints');
   });
 
+  test('full cached context marks action instructions as an explicit cache breakpoint', () => {
+    const result = buildMeetingCopilotContext({
+      mode: 'full_cached',
+      snapshot: seedBuffer().snapshot(),
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: '',
+      currentAction: 'Long stable action prompt that should be reused across repeated Guide Me calls.',
+    });
+
+    const serialized = buildOpenRouterMessages({
+      context: result,
+      cachePolicy: 'anthropic_explicit_1h',
+    });
+    const systemBlocks = Array.isArray(serialized.messages[0]?.content) ? serialized.messages[0].content : [];
+    const actionBlock = systemBlocks.find(
+      (block) =>
+        block.type === 'text' &&
+        block.text === 'Long stable action prompt that should be reused across repeated Guide Me calls.'
+    );
+
+    assert.equal(actionBlock?.cache_control?.ttl, '1h');
+    assert.equal(serialized.messages[1]?.role, 'user');
+    assert.equal(serialized.messages[1]?.content, 'Apply the action instructions to the current meeting context.');
+  });
+
   test('freshness guidance stays non-cacheable and adjacent to current_action', () => {
     const snapshot = seedBuffer().snapshot();
 
@@ -348,14 +379,18 @@ describe('MeetingCopilot ContextBuilder', () => {
         'pinned_context',
         'recent_transcript',
         'code_context',
+        'action_instructions',
         'current_action',
         'current_action',
       ]
     );
     assert.match(result.sections[0].content, /Do not use private meeting transcript or private code as a web search query\./);
     assert.equal(result.sections[5].content, 'Propose the best solution with tradeoffs.');
-    assert.match(result.sections[6].content, /current external facts/);
+    assert.equal(result.sections[5].cache?.cacheable, true);
+    assert.equal(result.sections[6].content, 'Apply the action instructions to the current meeting context.');
     assert.equal(result.sections[6].cache?.cacheable, false);
+    assert.match(result.sections[7].content, /current external facts/);
+    assert.equal(result.sections[7].cache?.cacheable, false);
   });
 
   test('recent context includes action_history before current_action', () => {
@@ -395,6 +430,14 @@ describe('MeetingCopilot ContextBuilder', () => {
       currentAction: 'Refine the architecture phase.',
     });
 
+    const actionInstructionsIndex = result.sections.findIndex((section) => section.key === 'action_instructions');
+    const actionHistoryIndex = result.sections.findIndex((section) => section.key === 'action_history');
+    const currentActionIndex = result.sections.findIndex((section) => section.key === 'current_action');
+
+    assert.ok(actionInstructionsIndex >= 0);
+    assert.ok(actionHistoryIndex > actionInstructionsIndex);
+    assert.ok(currentActionIndex > actionHistoryIndex);
+    assert.equal(result.sections[actionInstructionsIndex].cache?.cacheable, true);
     assert.equal(result.sections.at(-2)?.key, 'action_history');
     assert.equal(result.sections.at(-2)?.cache?.cacheable, false);
     assert.equal(result.sections.at(-1)?.key, 'current_action');

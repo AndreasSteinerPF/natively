@@ -463,12 +463,17 @@ describe('meeting-copilot action runner', () => {
       assert.equal(Array.isArray(request.messages[0].content), true);
       // Empty cacheable sections (custom_context, pinned_context) are omitted so
       // Anthropic never receives an empty text content block (which 400s). The
-      // second run also includes uncached action history from the first run.
-      assert.equal(request.messages[0].content.length, index === 0 ? 2 : 3);
+      // action prompt is a cacheable system instruction; the second run also
+      // includes uncached action history from the first run.
+      assert.equal(request.messages[0].content.length, index === 0 ? 3 : 4);
       assert.equal(
         request.messages[0].content
-          .filter((block) => block.text.includes('stable_instructions') || block.text.includes('meeting_transcript_so_far'))
+          .filter((block) => block.text.includes('stable_instructions') || block.text === action.prompt)
           .every((block) => block.cache_control?.ttl === '1h'),
+        true,
+      );
+      assert.equal(
+        request.messages[0].content.some((block) => block.text === action.prompt && block.cache_control?.ttl === '1h'),
         true,
       );
       assert.equal(request.messages[0].content.every((block) => block.text.trim().length > 0), true);
@@ -476,7 +481,7 @@ describe('meeting-copilot action runner', () => {
       assert.equal(request.messages[1].content.length, 2);
       assert.equal(request.messages[1].content[0].text, '<code_context>\n[file: src/example.ts lines=42-42]\n...</code_context>');
       assert.equal(request.messages[1].content[0].cache_control, undefined);
-      assert.equal(request.messages[1].content[1].text, action.prompt);
+      assert.equal(request.messages[1].content[1].text, 'Apply the action instructions to the current meeting context.');
       assert.equal(request.messages[1].content[1].cache_control, undefined);
     }
 

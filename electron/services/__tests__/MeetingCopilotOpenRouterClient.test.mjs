@@ -89,11 +89,11 @@ describe('meeting-copilot openrouter transport', () => {
     });
 
     assert.equal(serialized.messages[0].role, 'system');
-    assert.equal(serialized.messages[0].content.length, 4);
+    assert.equal(serialized.messages[0].content.length, 5);
     assert.match(serialized.messages[0].content[0].text, /^Stable/);
     assert.match(
-      serialized.messages[0].content[0].text,
-      /Do not use private meeting transcript or private code as a web search query\./
+        serialized.messages[0].content[0].text,
+        /Do not use private meeting transcript or private code as a web search query\./
     );
     assert.equal(serialized.messages[0].content[0].cache_control.ttl, '1h');
     assert.equal(serialized.messages[0].content[1].text, 'Custom');
@@ -102,12 +102,14 @@ describe('meeting-copilot openrouter transport', () => {
     assert.equal(serialized.messages[0].content[2].cache_control.ttl, '1h');
     assert.match(serialized.messages[0].content[3].text, /Transcript body/);
     assert.equal(serialized.messages[0].content[3].cache_control, undefined);
+    assert.equal(serialized.messages[0].content[4].text, 'Act now');
+    assert.equal(serialized.messages[0].content[4].cache_control.ttl, '1h');
     assert.equal(serialized.messages[1].role, 'user');
     assert.equal(Array.isArray(serialized.messages[1].content), true);
     assert.equal(serialized.messages[1].content.length, 2);
     assert.equal(serialized.messages[1].content[0].text, 'Code');
     assert.equal(serialized.messages[1].content[0].cache_control, undefined);
-    assert.equal(serialized.messages[1].content[1].text, 'Act now');
+    assert.equal(serialized.messages[1].content[1].text, 'Apply the action instructions to the current meeting context.');
     assert.equal(serialized.messages[1].content[1].cache_control, undefined);
   });
 

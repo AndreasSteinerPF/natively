@@ -136,6 +136,7 @@ export type PromptSectionKey =
     | 'code_context'
     | 'dynamic_evidence_context'
     | 'action_history'
+    | 'action_instructions'
     | 'current_action';
 
 export type PromptSectionCacheScope = 'metadata' | 'data';
