@@ -20,7 +20,7 @@ const { ActionRunManager } = await import(
 const { OpenRouterClient } = await import(
   pathToFileURL(path.join(distRoot, 'OpenRouterClient.js')).href
 );
-const { DEFAULT_MEETING_COPILOT_CONFIG } = await import(
+const { DEFAULT_MEETING_COPILOT_CONFIG, getDefaultMeetingCopilotConfig } = await import(
   pathToFileURL(path.join(distRoot, 'defaultActionConfig.js')).href
 );
 
@@ -523,6 +523,44 @@ describe('meeting-copilot action runner', () => {
 
     assert.equal(openRouterCalls.length, 1);
     assert.match(collectUserText(openRouterCalls[0]), /unverified\/currentness-uncertain/);
+  });
+
+  test('system-design actions omit freshness caveats and injected freshness instructions', async () => {
+    const openRouterCalls = [];
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    config.actions['guide-me'].prompt =
+      'Guide the latest system design phase without current public fact caveats.';
+
+    const manager = new ActionRunManager({
+      config,
+      transcriptSnapshotProvider: () => createSnapshot(),
+      buildContext: buildMeetingCopilotContext,
+      buildMessages: buildOpenRouterMessages,
+      openRouterClient: {
+        streamChatCompletion: async function* (request) {
+          openRouterCalls.push(request);
+          yield {
+            type: 'done',
+            result: {
+              content: 'Next phase.',
+              raw: {},
+              warnings: [],
+              usage: { prompt_tokens: 10, completion_tokens: 4, total_tokens: 14 },
+              metrics: { prompt_tokens: 10, completion_tokens: 4, total_tokens: 14 },
+            },
+          };
+        },
+      },
+      emitEvent: () => {},
+      createRunId: () => 'run-system-design-freshness',
+      now: createClock([0, 5, 10]),
+    });
+
+    await manager.start({ actionId: 'guide-me' });
+
+    const requestText = JSON.stringify(openRouterCalls[0].messages);
+    assert.doesNotMatch(requestText, /unverified\/currentness-uncertain/);
+    assert.doesNotMatch(requestText, /Do not use private meeting transcript or private code as a web search query/);
   });
 
   test('deep-answer metrics mark freshness as unverified when tools are unavailable', async () => {

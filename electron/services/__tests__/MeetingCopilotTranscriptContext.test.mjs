@@ -193,9 +193,9 @@ describe('MeetingCopilot ContextBuilder', () => {
         'stable_instructions',
         'custom_context',
         'pinned_context',
+        'action_instructions',
         'recent_transcript',
         'code_context',
-        'action_instructions',
         'current_action',
       ]
     );
@@ -206,17 +206,16 @@ describe('MeetingCopilot ContextBuilder', () => {
     assert.equal(result.sections[1].cache?.scope, 'metadata');
     assert.equal(result.sections[2].cache?.cacheable, true);
     assert.equal(result.sections[2].cache?.scope, 'metadata');
-    assert.equal(result.sections[3].cache?.cacheable, false);
+    assert.equal(result.sections[3].cache?.cacheable, true);
+    assert.equal(result.sections[3].cache?.scope, 'metadata');
     assert.equal(result.sections[4].cache?.cacheable, false);
-    assert.equal(result.sections[5].cache?.cacheable, true);
-    assert.equal(result.sections[5].cache?.scope, 'metadata');
     assert.equal(result.sections[6].cache?.cacheable, false);
-    assert.equal(result.sections[5].content, 'Propose the best solution with tradeoffs.');
+    assert.equal(result.sections[3].content, 'Propose the best solution with tradeoffs.');
     assert.equal(result.sections[6].content, 'Apply the action instructions to the current meeting context.');
 
-    assert.match(result.sections[3].content, /^Kickoff and agenda/);
-    assert.match(result.sections[3].content, /We should simplify the rollout path\./);
-    assert.match(result.sections[3].content, /The main risk is migration complexity\./);
+    assert.match(result.sections[4].content, /^Kickoff and agenda/);
+    assert.match(result.sections[4].content, /We should simplify the rollout path\./);
+    assert.match(result.sections[4].content, /The main risk is migration complexity\./);
   });
 
   test('transcript formatting is compact and does not leak chunk metadata into the prompt', () => {
@@ -306,8 +305,7 @@ describe('MeetingCopilot ContextBuilder', () => {
     const recentSection = result.sections.find((section) => section.key === 'recent_transcript');
 
     assert.ok(historySections.length >= 1);
-    assert.equal(historySections.at(-1)?.cache?.cacheable, false);
-    assert.equal(historySections.slice(0, -1).every((section) => section.cache?.cacheable === true), true);
+    assert.equal(historySections.every((section) => section.cache?.cacheable === true), true);
     assert.equal(recentSection?.cache?.cacheable, false);
     assert.match(historySections.map((section) => section.content).join('\n'), /Turn 1\./);
     assert.doesNotMatch(historySections.map((section) => section.content).join('\n'), /Turn 16\./);
@@ -377,16 +375,16 @@ describe('MeetingCopilot ContextBuilder', () => {
         'stable_instructions',
         'custom_context',
         'pinned_context',
+        'action_instructions',
         'recent_transcript',
         'code_context',
-        'action_instructions',
         'current_action',
         'current_action',
       ]
     );
     assert.match(result.sections[0].content, /Do not use private meeting transcript or private code as a web search query\./);
-    assert.equal(result.sections[5].content, 'Propose the best solution with tradeoffs.');
-    assert.equal(result.sections[5].cache?.cacheable, true);
+    assert.equal(result.sections[3].content, 'Propose the best solution with tradeoffs.');
+    assert.equal(result.sections[3].cache?.cacheable, true);
     assert.equal(result.sections[6].content, 'Apply the action instructions to the current meeting context.');
     assert.equal(result.sections[6].cache?.cacheable, false);
     assert.match(result.sections[7].content, /current external facts/);
@@ -432,14 +430,51 @@ describe('MeetingCopilot ContextBuilder', () => {
 
     const actionInstructionsIndex = result.sections.findIndex((section) => section.key === 'action_instructions');
     const actionHistoryIndex = result.sections.findIndex((section) => section.key === 'action_history');
+    const recentTranscriptIndex = result.sections.findIndex((section) => section.key === 'recent_transcript');
     const currentActionIndex = result.sections.findIndex((section) => section.key === 'current_action');
 
     assert.ok(actionInstructionsIndex >= 0);
     assert.ok(actionHistoryIndex > actionInstructionsIndex);
-    assert.ok(currentActionIndex > actionHistoryIndex);
+    assert.ok(recentTranscriptIndex > actionHistoryIndex);
+    assert.ok(currentActionIndex > recentTranscriptIndex);
     assert.equal(result.sections[actionInstructionsIndex].cache?.cacheable, true);
-    assert.equal(result.sections.at(-2)?.key, 'action_history');
-    assert.equal(result.sections.at(-2)?.cache?.cacheable, false);
+    assert.equal(result.sections[actionHistoryIndex].cache?.cacheable, true);
     assert.equal(result.sections.at(-1)?.key, 'current_action');
+  });
+
+  test('full_cached context keeps action history entries as separate cacheable blocks', () => {
+    const snapshot = seedBuffer().snapshot();
+
+    const result = buildMeetingCopilotContext({
+      mode: 'full_cached',
+      snapshot,
+      stableInstructions: 'Use transcript faithfully.',
+      customContext: '',
+      pinnedContext: '',
+      codeContext: '',
+      actionHistory: 'Guide Me\nFirst full response.\n\nGo Deeper\nSecond full response.',
+      actionHistoryEntries: [
+        'Guide Me\nFirst full response.',
+        'Go Deeper\nSecond full response.',
+      ],
+      currentAction: 'Continue.',
+    });
+
+    const actionHistorySections = result.sections.filter((section) => section.key === 'action_history');
+    assert.equal(actionHistorySections.length, 2);
+    assert.equal(actionHistorySections[0].content, 'Guide Me\nFirst full response.');
+    assert.equal(actionHistorySections[1].content, 'Go Deeper\nSecond full response.');
+    assert.equal(actionHistorySections.every((section) => section.cache?.cacheable === true), true);
+
+    const serialized = buildOpenRouterMessages({
+      context: result,
+      cachePolicy: 'anthropic_explicit_1h',
+    });
+    const systemBlocks = Array.isArray(serialized.messages[0]?.content) ? serialized.messages[0].content : [];
+    const cachedHistoryBlocks = systemBlocks.filter(
+      (block) => block.type === 'text' && /^Guide Me|^Go Deeper/.test(block.text)
+    );
+    assert.equal(cachedHistoryBlocks.length, 2);
+    assert.equal(cachedHistoryBlocks.every((block) => block.cache_control?.ttl === '1h'), true);
   });
 });

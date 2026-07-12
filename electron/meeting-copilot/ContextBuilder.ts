@@ -131,11 +131,24 @@ function splitTranscriptBlocks(content: string, targetChars: number): string[] {
     return blocks;
 }
 
+function normalizeActionHistoryEntries(input: BuildMeetingCopilotContextInput): string[] {
+    if (input.actionHistoryEntries) {
+        return input.actionHistoryEntries.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+    }
+
+    const actionHistory = input.actionHistory?.trim() ?? '';
+    return actionHistory.length > 0 ? [actionHistory] : [];
+}
+
 export function buildMeetingCopilotContext(
     input: BuildMeetingCopilotContextInput
 ): BuiltMeetingCopilotContext {
-    const stableInstructions = withFreshnessStableInstructions(input.stableInstructions);
-    const actionHistory = input.actionHistory?.trim() ?? '';
+    const stableInstructions =
+        input.freshnessEnabled === false
+            ? input.stableInstructions
+            : withFreshnessStableInstructions(input.stableInstructions);
+    const actionHistoryEntries = normalizeActionHistoryEntries(input);
+    const actionHistory = actionHistoryEntries.join('\n\n');
     const customContext = normalizeOptionalContext(input.customContext);
     const pinnedContext = normalizeOptionalContext(input.pinnedContext);
 
@@ -185,9 +198,9 @@ export function buildMeetingCopilotContext(
         formatTranscript(fullCachedTranscript.cacheableHistory),
         TRANSCRIPT_CACHE_BLOCK_TARGET_CHARS
     );
-    const transcriptHistorySections = transcriptHistoryBlocks.map((content, index) =>
+    const transcriptHistorySections = transcriptHistoryBlocks.map((content) =>
         section('meeting_transcript_so_far', content, {
-            cacheable: index < transcriptHistoryBlocks.length - 1,
+            cacheable: true,
             scope: 'data',
         })
     );
@@ -217,15 +230,21 @@ export function buildMeetingCopilotContext(
                 scope: 'metadata',
             }),
             ...transcriptHistorySections,
+            section('action_instructions', input.currentAction, {
+                cacheable: true,
+                scope: 'metadata',
+            }),
+            ...actionHistoryEntries.map((entry) =>
+                section('action_history', entry, {
+                    cacheable: true,
+                    scope: 'data',
+                })
+            ),
             section('recent_transcript', recentTranscriptContent, {
                 cacheable: false,
             }),
             section('code_context', input.codeContext ?? '', {
                 cacheable: false,
-            }),
-            section('action_instructions', input.currentAction, {
-                cacheable: true,
-                scope: 'metadata',
             }),
             ...(input.dynamicEvidenceContext && input.dynamicEvidenceContext.trim().length > 0
                 ? [
@@ -233,9 +252,6 @@ export function buildMeetingCopilotContext(
                           cacheable: false,
                       }),
                   ]
-                : []),
-            ...(actionHistory.length > 0
-                ? [section('action_history', actionHistory, { cacheable: false })]
                 : []),
             section('current_action', 'Apply the action instructions to the current meeting context.', {
                 cacheable: false,

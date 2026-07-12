@@ -16,6 +16,7 @@ const CACHEABLE_SECTION_KEYS = new Set<PromptSectionKey>([
     'pinned_context',
     'meeting_transcript_so_far',
     'action_instructions',
+    'action_history',
 ]);
 const MAX_EXPLICIT_CACHE_CONTROL_BLOCKS = 4;
 

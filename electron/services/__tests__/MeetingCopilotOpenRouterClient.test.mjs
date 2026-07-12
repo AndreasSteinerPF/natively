@@ -100,10 +100,10 @@ describe('meeting-copilot openrouter transport', () => {
     assert.equal(serialized.messages[0].content[1].cache_control.ttl, '1h');
     assert.equal(serialized.messages[0].content[2].text, 'Pinned');
     assert.equal(serialized.messages[0].content[2].cache_control.ttl, '1h');
-    assert.match(serialized.messages[0].content[3].text, /Transcript body/);
-    assert.equal(serialized.messages[0].content[3].cache_control, undefined);
-    assert.equal(serialized.messages[0].content[4].text, 'Act now');
-    assert.equal(serialized.messages[0].content[4].cache_control.ttl, '1h');
+    assert.equal(serialized.messages[0].content[3].text, 'Act now');
+    assert.equal(serialized.messages[0].content[3].cache_control.ttl, '1h');
+    assert.match(serialized.messages[0].content[4].text, /Transcript body/);
+    assert.equal(serialized.messages[0].content[4].cache_control, undefined);
     assert.equal(serialized.messages[1].role, 'user');
     assert.equal(Array.isArray(serialized.messages[1].content), true);
     assert.equal(serialized.messages[1].content.length, 2);

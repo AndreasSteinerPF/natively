@@ -202,6 +202,10 @@ function actionNeedsProjectContext(action: MeetingCopilotActionConfig): boolean 
     return action.context_mode === 'full_cached' || Boolean(action.project_docs_enabled);
 }
 
+function isSystemDesignActionSet(config: ActionRunManagerConfig): boolean {
+    return Boolean(resolveAction(config, 'guide-me') && resolveAction(config, 'go-deeper'));
+}
+
 function normalizeImagePaths(imagePaths: string[] | undefined): string[] {
     if (!Array.isArray(imagePaths)) return [];
 
@@ -824,6 +828,10 @@ export class ActionRunManager {
         return (this.sharedActionHistoryByMeeting.get(meetingId) ?? []).join('\n\n');
     }
 
+    private getSharedActionHistoryEntries(meetingId: string): string[] {
+        return [...(this.sharedActionHistoryByMeeting.get(meetingId) ?? [])];
+    }
+
     private formatSingleActionHistory(label: string, finalText: string): string {
         return `${label}\n${finalText.trim()}`.trim();
     }
@@ -959,13 +967,23 @@ export class ActionRunManager {
             input.branchConfig.context_mode === 'full_cached' || Boolean(input.branchConfig.project_docs_enabled);
         const projectDocsContext = branchWantsProjectDocs ? input.projectContextBundle.text : '';
         const projectContextWarnings = input.projectContextBundle.warnings ?? [];
-        const freshnessDecision = classifyFreshnessNeed({
-            actionId: input.actionId,
-            branch: input.branch === 'main' ? 'single' : input.branch,
-            prompt: input.branchConfig.prompt,
-            recentTranscriptText: recentTranscriptText(input.snapshot),
-            toolsAvailable: this.hasFreshnessTools(),
-        });
+        const systemDesignActions = isSystemDesignActionSet(this.config);
+        const freshnessDecision: FreshnessDecision = systemDesignActions
+            ? {
+                  sensitivity: 'none',
+                  allowed: false,
+                  shouldVerify: false,
+                  shouldCaveat: false,
+                  reason: 'Freshness checks are disabled for system-design interview actions.',
+                  categories: [],
+              }
+            : classifyFreshnessNeed({
+                  actionId: input.actionId,
+                  branch: input.branch === 'main' ? 'single' : input.branch,
+                  prompt: input.branchConfig.prompt,
+                  recentTranscriptText: recentTranscriptText(input.snapshot),
+                  toolsAvailable: this.hasFreshnessTools(),
+              });
         const freshnessEvidence = await this.buildFreshnessEvidence({
             decision: freshnessDecision,
             prompt: input.branchConfig.prompt,
@@ -981,7 +999,8 @@ export class ActionRunManager {
             (freshnessDecision.shouldVerify && freshnessEvidence.resultCount === 0)
                 ? FRESHNESS_UNVERIFIED_CAVEAT
                 : undefined;
-        const actionHistoryBefore = this.getSharedActionHistory(input.snapshot.meeting_id);
+        const actionHistoryBeforeEntries = this.getSharedActionHistoryEntries(input.snapshot.meeting_id);
+        const actionHistoryBefore = actionHistoryBeforeEntries.join('\n\n');
         const context = this.buildContext({
             mode: input.branchConfig.context_mode,
             snapshot: input.snapshot,
@@ -990,6 +1009,8 @@ export class ActionRunManager {
             projectDocsContext,
             pinnedContext: input.pinnedContext,
             actionHistory: actionHistoryBefore,
+            actionHistoryEntries: actionHistoryBeforeEntries,
+            freshnessEnabled: !systemDesignActions,
             currentAction: input.branchConfig.prompt,
             dynamicEvidenceContext: freshnessEvidence.dynamicContextText,
             freshnessGuidance,
@@ -1056,6 +1077,8 @@ export class ActionRunManager {
                 projectDocsContext,
                 pinnedContext: input.pinnedContext,
                 actionHistory: actionHistoryBefore,
+                actionHistoryEntries: actionHistoryBeforeEntries,
+                freshnessEnabled: !systemDesignActions,
                 currentAction: input.branchConfig.prompt,
                 dynamicEvidenceContext: freshnessEvidence.dynamicContextText,
                 freshnessGuidance,

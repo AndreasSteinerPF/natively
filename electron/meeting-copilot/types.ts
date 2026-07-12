@@ -161,6 +161,8 @@ export interface BuildMeetingCopilotContextInput {
     pinnedContext: string;
     currentAction: string;
     actionHistory?: string;
+    actionHistoryEntries?: string[];
+    freshnessEnabled?: boolean;
     freshnessGuidance?: string;
     dynamicEvidenceContext?: string;
     contextMinutes?: number;

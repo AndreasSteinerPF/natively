@@ -125,10 +125,14 @@ describe('meeting-copilot shared action state', () => {
     await manager.start({ actionId: 'go-deeper' });
 
     assert.equal(builtContexts[0].actionHistory, '');
+    assert.deepEqual(builtContexts[0].actionHistoryEntries, []);
     assert.match(
       builtContexts[1].actionHistory,
       /Guide Me[\s\S]*Postgres as the source of truth\./
     );
+    assert.deepEqual(builtContexts[1].actionHistoryEntries, [
+      'Guide Me\nStep: High-level architecture\nSay: Start with one API service and Postgres as the source of truth.',
+    ]);
   });
 
   test('action history is isolated across meeting ids', async () => {
@@ -188,5 +192,7 @@ describe('meeting-copilot shared action state', () => {
 
     assert.equal(builtContexts[0].actionHistory, '');
     assert.equal(builtContexts[1].actionHistory, '');
+    assert.deepEqual(builtContexts[0].actionHistoryEntries, []);
+    assert.deepEqual(builtContexts[1].actionHistoryEntries, []);
   });
 });
