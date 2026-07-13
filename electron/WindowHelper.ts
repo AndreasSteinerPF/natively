@@ -78,7 +78,7 @@ export class WindowHelper {
   private static readonly OVERLAY_DEFAULT_TOP_RATIO = 0.035;
 
   // Movement variables (apply to active window)
-  private step: number = 60;
+  private step: number = 120;
 
   constructor(appState: AppState) {
     this.appState = appState;
@@ -962,6 +962,11 @@ export class WindowHelper {
   }
 
   // --- Window Movement (Applies to Overlay mostly, but generalized to active) ---
+  public setWindowMoveStepPx(stepPx: number): void {
+    if (!Number.isFinite(stepPx) || stepPx <= 0) return;
+    this.step = Math.round(stepPx);
+  }
+
   private moveActiveWindow(dx: number, dy: number): void {
     const win = this.getMainWindow();
     if (!win) return;

@@ -77,6 +77,10 @@ export interface ProjectContextBundle {
     truncated: boolean;
 }
 
+export interface OverlayConfig {
+    move_step_px: number;
+}
+
 export interface ActionBranchConfig {
     model: string;
     context_mode: ContextMode;
@@ -430,6 +434,7 @@ export type FreshnessEvidence = {
 export interface MeetingCopilotConfig {
     openrouter: OpenRouterConfig;
     actions: Record<string, MeetingCopilotActionConfig>;
+    overlay: OverlayConfig;
     workspaces: WorkspaceConfig[];
     code_context: CodeContextConfig;
     transcript_context: TranscriptContextConfig;

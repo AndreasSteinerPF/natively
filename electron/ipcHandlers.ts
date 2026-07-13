@@ -219,6 +219,7 @@ export function initializeIpcHandlers(appState: AppState): void {
     meetingCopilotConfigWarning = `Meeting Copilot config failed to load: ${error?.message || String(error)}`;
     console.warn(meetingCopilotConfigWarning);
   }
+  appState.getWindowHelper().setWindowMoveStepPx(meetingCopilotConfig.overlay.move_step_px);
   const pinnedContextStore = new PinnedContextStore({
     configDir: path.join(app.getPath('userData'), 'meeting-copilot'),
     fileName: 'pinned-context.json',

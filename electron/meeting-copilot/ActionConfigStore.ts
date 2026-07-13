@@ -12,6 +12,7 @@ import {
     ReasoningEffort,
     ProjectContextConfig,
     ProjectContextPack,
+    OverlayConfig,
 } from './types';
 
 export interface ActionConfigStoreOptions {
@@ -91,6 +92,7 @@ export function validateMeetingCopilotConfig(value: unknown): MeetingCopilotConf
     const config = value as JsonObject;
     const openrouter = validateOpenRouterConfig(config.openrouter, 'openrouter');
     const actions = validateActions(config.actions, 'actions');
+    const overlay = validateOverlay(config.overlay, 'overlay');
     const workspaces = validateWorkspaces(config.workspaces, 'workspaces');
     const codeContext = validateCodeContext(config.code_context, 'code_context');
     const transcriptContext = validateTranscriptContext(config.transcript_context, 'transcript_context');
@@ -100,11 +102,20 @@ export function validateMeetingCopilotConfig(value: unknown): MeetingCopilotConf
     return {
         openrouter,
         actions,
+        overlay,
         workspaces,
         code_context: codeContext,
         transcript_context: transcriptContext,
         review_log: reviewLog,
         project_context: projectContext,
+    };
+}
+
+function validateOverlay(value: unknown, pathName: string): OverlayConfig {
+    assertObject(value, pathName);
+
+    return {
+        move_step_px: requirePositiveInteger(value.move_step_px, `${pathName}.move_step_px`),
     };
 }
 

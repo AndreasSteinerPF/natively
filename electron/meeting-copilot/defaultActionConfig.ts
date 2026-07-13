@@ -97,6 +97,8 @@ const SYSTEM_DESIGN_GUIDE_PROMPT = [
     'Use Write heavily for entities, APIs, architecture, flows, and deep dives.',
     'Write may be more verbose than Say or Why when diagram correctness depends on precise boxes, arrows, labels, placement, or sequencing.',
     'For Core Entities & Data Model, prefer entity names, purpose, lifecycle, relationships, and only behavior-driving fields/tradeoffs; avoid exhaustive schema columns unless the interviewer explicitly asks for schema detail.',
+    'For APIs & Access Patterns, explicitly choose the external protocol before listing endpoints: REST/JSON for resource-oriented control-plane APIs by default, gRPC for internal high-throughput or streaming service calls, GraphQL only when flexible client aggregation is a stated need, and events/queues for async fan-out.',
+    'In APIs & Access Patterns, include the protocol choice as a short Say/Write/Why step so the route names do not merely imply REST; ground the choice in consumer ergonomics, latency, schema strength, or async delivery needs.',
     'High-Level Architecture can take multiple Guide Me calls; do not try to finish the entire architecture, reliability story, and deep dive in one response.',
     'For High-Level Architecture, each Guide Me response should cover one coherent slice of the diagram: core write path, core read path, derived-data/update path, reprocess/admin path, or a repair of missing links.',
     'In High-Level Architecture, draw the core end-to-end paths before reliability notes, optimizations, and edge-case annotations.',
@@ -106,6 +108,7 @@ const SYSTEM_DESIGN_GUIDE_PROMPT = [
     'Every drawn component must have a labeled upstream and downstream connection unless it is explicitly an external actor or terminal data store.',
     'Every derived store, cache, aggregate, index, search view, or materialized view must name its source of truth and update trigger.',
     'Every cache or derived store must show its source-of-truth path and its miss, refresh, or invalidation path before the architecture slice is considered complete.',
+    'If a derived worker consumes events in parallel with the worker that persists the claimed source of truth, explicitly resolve the ordering risk: either derive from a post-commit event, CDC/outbox, or the same authoritative log, and say which one owns correctness.',
     'In High-Level Architecture, ADVANCE can mean advancing to the next architecture slice, not leaving the phase.',
     'Before each High-Level Architecture ADVANCE, silently validate the current diagram slice for ownership, source of truth, update trigger, read/write path clarity, and missing or floating components.',
     'If the current architecture slice is ambiguous, choose REPAIR before adding a new slice.',
@@ -262,6 +265,9 @@ const MEETING_DEFAULT_CONFIG: MeetingCopilotConfig = {
             },
         },
     },
+    overlay: {
+        move_step_px: 120,
+    },
     workspaces: [],
     code_context: {
         enabled: true,
@@ -336,6 +342,9 @@ const SYSTEM_DESIGN_INTERVIEW_CONFIG: MeetingCopilotConfig = {
             },
             prompt: SYSTEM_DESIGN_DEEPER_PROMPT,
         },
+    },
+    overlay: {
+        move_step_px: 120,
     },
     workspaces: [],
     code_context: {

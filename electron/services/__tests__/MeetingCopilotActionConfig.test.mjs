@@ -221,6 +221,18 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Ground reasoning in screenshot\/transcript facts, scale numbers, constraints, or explicit assumptions/);
   });
 
+  test('system-design guide prompt makes API protocol choice explicit', () => {
+    const config = getDefaultMeetingCopilotConfig('system-design-interview');
+    const prompt = config.actions['guide-me'].prompt;
+
+    assert.match(prompt, /For APIs & Access Patterns, explicitly choose the external protocol before listing endpoints/);
+    assert.match(prompt, /REST\/JSON for resource-oriented control-plane APIs by default/);
+    assert.match(prompt, /gRPC for internal high-throughput or streaming service calls/);
+    assert.match(prompt, /GraphQL only when flexible client aggregation is a stated need/);
+    assert.match(prompt, /events\/queues for async fan-out/);
+    assert.match(prompt, /route names do not merely imply REST/);
+  });
+
   test('system-design guide prompt treats architecture as an incremental diagram phase', () => {
     const config = getDefaultMeetingCopilotConfig('system-design-interview');
     const prompt = config.actions['guide-me'].prompt;
@@ -239,6 +251,7 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /Every drawn component must have a labeled upstream and downstream connection/i);
     assert.match(prompt, /source of truth and update trigger/i);
     assert.match(prompt, /miss, refresh, or invalidation path/i);
+    assert.match(prompt, /post-commit event, CDC\/outbox, or the same authoritative log/i);
     assert.match(prompt, /one write, one read, one late\/corrected event, and one reprocess\/admin event/i);
     assert.match(prompt, /If any path is missing, floating, or ambiguous about ownership\/order\/source-of-truth, choose REPAIR/i);
     assert.match(prompt, /ADVANCE can mean advancing to the next architecture slice/i);
@@ -357,6 +370,10 @@ describe('meeting-copilot action config defaults', () => {
       DEFAULT_MEETING_COPILOT_CONFIG.openrouter.default_headers,
       EXPECTED_DEFAULTS.openrouterHeaders
     );
+  });
+
+  test('default overlay movement step is doubled for keyboard positioning', () => {
+    assert.equal(DEFAULT_MEETING_COPILOT_CONFIG.overlay.move_step_px, 120);
   });
 
   test('single-action defaults include brief model slugs, slash commands, button=false, and token/context limits', () => {
@@ -640,6 +657,9 @@ describe('ActionConfigStore', () => {
 
   test('loadSync uses the same local override merge and validation path as async load', () => {
     const usedDir = writeOverride('used-sync', {
+      overlay: {
+        move_step_px: 180,
+      },
       actions: {
         'quick-answer': {
           label: 'Sync Quick Answer',
@@ -678,8 +698,19 @@ describe('ActionConfigStore', () => {
     const config = store.loadSync();
 
     assert.equal(config.actions['quick-answer'].label, 'Sync Quick Answer');
+    assert.equal(config.overlay.move_step_px, 180);
     assert.equal(config.workspaces[0].name, 'repo-sync');
     assert.equal(config.project_context.packs[0].linkedWorkspaceName, 'repo-sync');
     assert.equal(store.getAction('quick-answer')?.label, 'Sync Quick Answer');
+  });
+
+  test('invalid overlay movement step is rejected', () => {
+    const config = cloneConfig();
+    config.overlay.move_step_px = 0;
+
+    assert.throws(
+      () => validateMeetingCopilotConfig(config),
+      /overlay\.move_step_px must be a positive integer/
+    );
   });
 });
