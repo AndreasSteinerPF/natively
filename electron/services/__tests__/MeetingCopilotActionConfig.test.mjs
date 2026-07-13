@@ -228,8 +228,17 @@ describe('meeting-copilot action config defaults', () => {
     assert.match(prompt, /High-Level Architecture can take multiple Guide Me calls/i);
     assert.match(prompt, /one coherent slice of the diagram/i);
     assert.match(prompt, /core end-to-end paths before reliability notes/i);
+    assert.match(prompt, /Treat Write as an exact drawing script/i);
+    assert.match(prompt, /left-to-right and top-to-bottom/i);
+    assert.match(prompt, /Write may be more verbose than Say or Why/i);
+    assert.match(prompt, /separate arrow/i);
+    assert.match(prompt, /miss path/i);
+    assert.match(prompt, /Do not use chained arrows like `A -> B -> C` unless B really calls/i);
+    assert.match(prompt, /If A talks to both B and C, write two separate arrow commands/i);
+    assert.match(prompt, /never imply a cache, queue, or derived store is the caller of a source-of-truth database/i);
     assert.match(prompt, /Every drawn component must have a labeled upstream and downstream connection/i);
     assert.match(prompt, /source of truth and update trigger/i);
+    assert.match(prompt, /miss, refresh, or invalidation path/i);
     assert.match(prompt, /one write, one read, one late\/corrected event, and one reprocess\/admin event/i);
     assert.match(prompt, /If any path is missing, floating, or ambiguous about ownership\/order\/source-of-truth, choose REPAIR/i);
     assert.match(prompt, /ADVANCE can mean advancing to the next architecture slice/i);
